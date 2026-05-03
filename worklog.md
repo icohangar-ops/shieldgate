@@ -140,3 +140,29 @@ Stage Summary:
 - Cost scenario modeling: lithium shock, cobalt restriction, nickel recovery
 - 32 tests, 11 Delta tables, 2 Fabric notebooks
 - Pushed to Codeberg: https://codeberg.org/cubiczan/battery-erp
+
+---
+Task ID: 7
+Agent: Main Agent
+Task: Minescope.Signal — Mining Intelligence Platform (Fabric + AI Foundry variant of Minescope)
+
+Work Log:
+- Reviewed original Commodity-Price-Analyzer repo: 4 GLI contract types, Airia flow, AlphaVantage, Kimi K2.6
+- Designed Minescope.Signal architecture: 6 domain models, 5 services, AI agents, 14 Delta tables
+- Built domain models: MiningCompany (tier/sector/ESG), MineSite (status/processing), ReserveEstimate (NI 43-101 compliant), ProductionRecord (quarterly/annual), CommodityPrice (multi-source, unit conversion), AiscMetric (cost benchmarking)
+- Built services: PricingService (AV/FRED, 14-commodity fallback, rate limiting), ReserveService (aggregation, NPV sensitivity, comparison), ProductionService (grade trends, guidance analysis, recovery efficiency), AiscService (cost curves, margins, peer benchmarking), MiningIntelligenceService (composite signal scoring + AI context builder)
+- Signal scoring: 0-100 composite across grade(25%), cost(25%), production(20%), growth(15%), ESG(15%) with rating bands
+- Fabric notebooks: setup (14 cells, 14 Delta tables, seed data for 8 companies/14 mines/18 reserves) + dashboard (14 cells, full pipeline with AI Foundry agents)
+- AI Foundry integration: per-company intelligence briefing agent + cross-company comparative analysis agent
+- 64 tests all passing
+- Pushed to Codeberg: https://codeberg.org/cubiczan/minescope-signal
+
+Stage Summary:
+- Minescope.Signal is a clean Fabric + AI Foundry variant of Minescope (original left untouched)
+- 6 domain models with NI 43-101 / JORC compliance
+- 5 services with full business logic
+- Composite signal scoring with 5 weighted dimensions
+- 14 Delta tables in Fabric Lakehouse
+- 2 AI Foundry agents (intelligence briefing + comparative analysis)
+- 64 tests, 2 Fabric notebooks, 8 seeded mining companies
+- Pushed to Codeberg: https://codeberg.org/cubiczan/minescope-signal (commit 382cd94)
