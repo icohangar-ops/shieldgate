@@ -92,3 +92,51 @@ Stage Summary:
 - RAG context from SEC EDGAR 10-K filings (up to 8K chars)
 - Fabric notebooks ready to paste and run in existing Lakehouse
 - Pushed to Codeberg: https://codeberg.org/cubiczan/sec-earnings-workbench
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: Peer batch processing pipeline for sec-earnings-workbench
+
+Work Log:
+- Designed batch architecture: wrap single-company pipeline into process_company() function
+- Created fabric_peer_batch.py (12 cells): config, data ingestion, AI clients, batch loop, comparative analysis, Delta writes
+- Added rate-limit enforcement: AlphaVantage call tracking, 15s delays, daily cap (25 calls)
+- Added AI retry logic: 3 attempts with exponential backoff
+- Built Comparative Analysis Agent: cross-company synthesis with side-by-side metrics, relative value ranking, macro sensitivity, pair trade suggestions
+- Added peer_comparisons Delta table to setup notebook (8 tables total now)
+- Updated README with peer batch docs and rate-limit guidance
+- All pushed to Codeberg (commit a282f8f)
+
+Stage Summary:
+- Peer batch processes primary + N peers through full pipeline (data -> 3 agents -> CHP -> artifact)
+- Post-batch Comparative Analysis Agent synthesizes cross-company insights
+- New Delta table: peer_comparisons (batch_id, comparative_md, avg_foundation_score, duration)
+- Fabric notebooks: fabric_setup_lakehouse.py (8 tables), fabric_research_pipeline.py (single), fabric_peer_batch.py (batch)
+- Pushed to Codeberg: https://codeberg.org/cubiczan/sec-earnings-workbench
+
+---
+Task ID: 6
+Agent: Main Agent
+Task: Battery ERP — full battery value chain management system
+
+Work Log:
+- Designed data model: 11 domain objects covering raw materials through packs
+- Built core models: RawMaterial, CellChemistry, BatteryCell, BatteryPack, BOMItem, Supplier, InventoryRecord, PurchaseOrder, ManufacturingBatch, PriceHistory
+- Built business rules engine: BOM rollups, cell BOM generation for 6 chemistries, pack BOM, inventory status, reorder logic, batch yield, price trend analysis, cost scenario impact
+- Built supply chain module: supplier scoring (composite A-D), ranking, PO creation, pipeline analysis, dual-sourcing strategy
+- Built pricing engine: 20+ battery material prices, AlphaVantage/FRED integration, cell cost summaries
+- Built analytics module: inventory/supply chain/manufacturing/pricing report generators
+- 32 unit tests — all passing
+- Fabric Lakehouse: 11 Delta tables with seed data (materials, chemistries, cells, packs, BOM, suppliers, inventory, POs, price history, batches, scenarios)
+- Fabric notebooks: setup (13 cells) + cost dashboard (14 cells)
+- Pushed to Codeberg: https://codeberg.org/cubiczan/battery-erp
+
+Stage Summary:
+- Full battery value chain: materials -> chemistries -> cells -> packs
+- 6 chemistries supported: NMC-111, NMC-811, NMC-622, NCA, LFP, LMO
+- 20+ materials tracked: Li carbonate, Ni, Co, Mn, graphite, electrolyte, Cu/Al foil, separator
+- Supplier scoring: composite 0-100 with A/B/C/D grades
+- Cost scenario modeling: lithium shock, cobalt restriction, nickel recovery
+- 32 tests, 11 Delta tables, 2 Fabric notebooks
+- Pushed to Codeberg: https://codeberg.org/cubiczan/battery-erp
