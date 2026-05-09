@@ -1,0 +1,100 @@
+# ============================================================================
+# FinFlowRL Default Configuration
+# ============================================================================
+# Based on: Li et al. (2025) "FinFlowRL" arXiv:2509.17964
+#
+# This file defines the default hyperparameters for all components of the
+# FinFlowRL pipeline.  Override individual values on the command line or by
+# creating a copy with modified settings.
+# ============================================================================
+
+# --- Global Settings ---
+seed: 42
+device: "auto"              # "auto", "cpu", or "cuda"
+checkpoint_dir: "checkpoints"
+data_dir: "data"
+
+# ============================================================================
+# Market Simulator
+# ============================================================================
+# Jump-diffusion price process with fractional Brownian motion and
+# bivariate Hawkes order arrivals.
+# ============================================================================
+market:
+  # Price process (Merton jump-diffusion with fBm)
+  S0: 100.0                  # Initial mid-price
+  mu: 0.0                    # Drift rate
+  sigma: 0.1                 # Diffusion volatility
+  H: 0.5                     # Hurst exponent (0.5 = standard BM)
+  mu_J: -0.02                # Jump mean
+  sigma_J: 0.03              # Jump std-dev
+  lambda_J: 0.1              # Jump intensity (Poisson rate)
+  dt: 0.01                   # Time-step size
+
+  # Hawkes order-arrival process
+  mu_a: 10.0                 # Baseline buy-order arrival rate
+  mu_b: 10.0                 # Baseline sell-order arrival rate
+  alpha_aa: 5.0              # Buy self-excitation
+  alpha_ab: 3.0              # Buy cross-excitation (from sell)
+  alpha_bb: 5.0              # Sell self-excitation
+  alpha_ba: 3.0              # Sell cross-excitation (from buy)
+  beta: 10.0                 # Exponential decay rate
+
+# ============================================================================
+# Expert Strategies
+# ============================================================================
+# Hyperparameters for the 4 expert strategies used in Stage 1 demonstration
+# data generation.
+# ============================================================================
+expert:
+  # Avellaneda-Stoikov
+  as_gamma: 0.1              # Risk aversion coefficient
+  as_k: 1.5                  # Order-arrival intensity parameter
+  as_sigma: 0.1              # Volatility estimate (0 = use market state)
+  as_T: 1.0                  # Trading horizon
+
+  # GLFT / GLFT-Drift
+  glft_gamma: 0.1            # Risk aversion
+  glft_kappa: 1.5            # Intensity scaling parameter
+
+# ============================================================================
+# Neural Network Architecture
+# ============================================================================
+# MeanFlow policy, FiLM conditioning, and noise policy dimensions.
+# ============================================================================
+model:
+  state_dim: 14              # Per-observation features (T_obs * 7)
+  action_dim: 2              # (delta_bid, delta_ask)
+  noise_dim: 16              # Per-timestep latent noise dimension
+  hidden_dim: 128            # Hidden layer width
+  num_layers: 3              # Number of FiLM residual blocks
+  T_obs: 2                   # Observation lookback window
+  T_pred: 8                  # Action prediction horizon (chunk size)
+  T_exec: 4                  # Actions executed before re-planning
+
+# ============================================================================
+# Stage 1: MeanFlow Pre-training
+# ============================================================================
+# Flow matching on expert demonstrations with MeanFlow consistency loss.
+# ============================================================================
+pretrain:
+  learning_rate: 3.0e-4      # Peak learning rate (after warmup)
+  weight_decay: 1.0e-5       # L2 regularisation
+  batch_size: 256            # Training batch size
+  num_epochs: 100            # Maximum training epochs
+  warmup_steps: 1000         # Linear warmup steps
+
+# ============================================================================
+# Stage 2: FlowRL Fine-tuning (PPO in Noise Space)
+# ============================================================================
+# Frozen MeanFlow + trainable noise policy optimised via PPO.
+# ============================================================================
+finetune:
+  learning_rate: 3.0e-4      # Learning rate for noise policy + value net
+  gamma: 0.99                # Discount factor
+  clip_epsilon: 0.2          # PPO clipping parameter
+  entropy_coeff: 0.01        # Entropy bonus (exploration)
+  value_coeff: 0.5           # Value loss weight
+  gae_lambda: 0.95           # GAE lambda for advantage estimation
+  rollout_steps: 2048        # Environment steps per rollout
+  ppo_epochs: 10             # PPO update epochs per rollout

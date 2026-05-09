@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://github.com/vjgaur/ink-smart-contracts-substrate",
+    "name": "vjgaur/ink-smart-contracts-substrate - GitHub",
+    "snippet": "A blockchain node is an application that allows users to participate in a blockchain network. Substrate-based blockchain nodes expose a number of capabilities:. Missing: green POT",
+    "host_name": "github.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/akkayadila/Polkadot-Rust-Substrate-Project",
+    "name": "akkayadila/Polkadot-Rust-Substrate-Project - GitHub",
+    "snippet": "Building a blockchain: Simulation of a transaction on Substrate node using front end; Simulating a substrate network: Simulation a substrate ...",
+    "host_name": "github.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/Reign-Protocol/Substrate-Barcode-Scanner",
+    "name": "Reign-Protocol/Substrate-Barcode-Scanner - GitHub",
+    "snippet": "The Substrate project in this repository uses the FRAME framework to construct a blockchain runtime. ... Run in Docker. First, install Docker and Docker Compose.",
+    "host_name": "github.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://gist.github.com/patternproject/c8e973abeebc9238cdedae219168bfdd",
+    "name": "Wk2_Submission.ipynb - gist/GitHub",
+    "snippet": "Objective¶. Narrow down the set of job postings to those that are most similar to our resume in preparation for further analysis.",
+    "host_name": "gist.github.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/fire17/awesome-stars",
+    "name": "fire17/awesome-stars: Curated List of all my starred repos on github",
+    "snippet": "Curated List of all my starred repos on github. Contribute to fire17/awesome-stars development by creating an account on GitHub.",
+    "host_name": "github.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/TheExpendablesEmergingTechnologies/EmergingTechnologies/blob/main/Model/DLProject_ModelTrain_Diff_Aux_Set.ipynb",
+    "name": "DLProject_ModelTrain_Diff_Aux",
+    "snippet": "Train the model and log the losses in forward and backward passes. Get the F1 score, accuracy, sentiment score and loss, actual and predicted values for ...",
+    "host_name": "github.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://use.ink/docs/v5/how-it-works",
+    "name": "How it Works – Substrate | Documentation - ink!",
+    "snippet": "Substrate is a framework for building blockchains – those can be standalone blockchains or blockchains connected to Kusama or Polkadot, so called parachains. Read more",
+    "host_name": "use.ink",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://forum.polkadot.network/t/my-experience-with-ink-and-why-rust-smart-contracts-matter-for-polkadot/16134",
+    "name": "My Experience with ink! and Why Rust Smart Contracts",
+    "snippet": "2 Dec 2025 — After attending PBA7 and learning about Ink !, I immediately saw the potential it unlocks and the advantages it can offer Polkadot developers. Read more",
+    "host_name": "forum.polkadot.network",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/@brunopgalvao/substrate-cfeb13333f2c",
+    "name": "Intro to Substrate - A Rust-based blockchain framework.",
+    "snippet": "Substrate is an open-source, battle-tested, Rust framework for building future-proof blockchains optimized for most use cases — built by ...",
+    "host_name": "medium.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://brson.github.io/2020/12/03/substrate-and-ink-part-1",
+    "name": "First impressions of Rust smart contracts with Substrate",
+    "snippet": "3 Dec 2020 — A substrate blockchain can run smart contracts in either WASM or Ethereum's EVM. Those WASM contracts are most easily written with ink , which ... Read more",
+    "host_name": "brson.github.io",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

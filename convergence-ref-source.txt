@@ -1,0 +1,4247 @@
+===== ***REDACTED_PATH***/convergence-cfo-ref/src/cme/chp/models.py =====
+"""Canonical data model for Consensus Hardening Protocol."""
+from __future__ import annotations
+
+from dataclasses import asdict, dataclass, field
+from enum import Enum
+from typing import Any, Dict, List, Optional
+
+
+class Phase(int, Enum):
+    FOUNDATION = 0
+    SPEC = 1
+    IMPLEMENTATION = 2
+
+
+class Verdict(str, Enum):
+    PASS = "PASS"
+    FAIL = "FAIL"
+    HALT = "HALT"
+    REFRAME = "REFRAME"
+    ITERATE = "ITERATE"
+    CONVERGED = "CONVERGED"
+    PHASE_GATE_FAIL = "PHASE_GATE_FAIL"
+
+
+class SessionStatus(str, Enum):
+    EXPLORING = "EXPLORING"
+    PROVISIONAL = "PROVISIONAL"
+    PROVISIONAL_LOCK = "PROVISIONAL_LOCK"
+    LOCKED = "LOCKED"
+    CONVERGED = "CONVERGED"
+    UNRESOLVED = "UNRESOLVED"
+    REFRAME_REQUIRED = "REFRAME_REQUIRED"
+    HALT = "HALT"
+
+
+class ValidationResult(str, Enum):
+    CONFIRM = "CONFIRM"
+    REJECT = "REJECT"
+
+
+class ModelTier(str, Enum):
+    SMALL = "small"
+    MID = "mid"
+    HIGH = "high"
+    FRONTIER = "frontier"
+    UNKNOWN = "unknown"
+
+
+@dataclass
+class ContextCheck:
+    memory_tools: str = "UNAVAILABLE"
+    prior_sessions_count: int = 0
+    prior_lock_versions: List[str] = field(default_factory=list)
+    legacy_warning: bool = False
+    related_locks: List[str] = field(default_factory=list)
+    assessment: str = "SPARSE"
+    action: str = "PROCEED"
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ContextCheck":
+        return cls(**data)
+
+
+@dataclass
+class ModelParityCheck:
+    origin: str
+    partner: str
+    delta: str
+    advisory: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ModelParityCheck":
+        return cls(**data)
+
+
+@dataclass
+class Dossier:
+    core_problem: str
+    goal_state: List[str] = field(default_factory=list)
+    current_state: List[str] = field(default_factory=list)
+    prior_decisions: List[str] = field(default_factory=list)
+    constraints: List[str] = field(default_factory=list)
+    unknowns: List[str] = field(default_factory=list)
+    scope: List[str] = field(default_factory=list)
+    origin_direction: List[str] = field(default_factory=list)
+    prior_round_summary: List[str] = field(default_factory=list)
+    unknowns_carried: List[str] = field(default_factory=list)
+    foundation_score: Optional[int] = None
+    structural_vulnerabilities: List[str] = field(default_factory=list)
+
+    def validate(self) -> List[str]:
+        errors: List[str] = []
+        if not self.core_problem or self.core_problem == "UNKNOWN":
+            errors.append("core_problem is required")
+        populated = sum(
+            1
+            for field_value in (
+                self.goal_state,
+                self.current_state,
+                self.constraints,
+                self.scope,
+            )
+            if field_value
+        )
+        if populated < 3:
+            errors.append("dossier must include at least three populated context sections")
+        return errors
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Dossier":
+        return cls(**data)
+
+
+@dataclass
+class FoundationDisclosure:
+    weakest_assumptions: List[str] = field(default_factory=list)
+    invalidation_conditions: List[str] = field(default_factory=list)
+    key_vulnerability: str = ""
+
+    def validate(self) -> List[str]:
+        errors: List[str] = []
+        if not self.weakest_assumptions or len(self.weakest_assumptions) > 3:
+            errors.append("weakest_assumptions must include 1-3 items")
+        if not self.invalidation_conditions or len(self.invalidation_conditions) > 2:
+            errors.append("invalidation_conditions must include 1-2 items")
+        if not self.key_vulnerability:
+            errors.append("key_vulnerability is required")
+        return errors
+
+
+@dataclass
+class FoundationAttack:
+    assumption_attacks: List[str] = field(default_factory=list)
+    invalidation_exploitation: List[str] = field(default_factory=list)
+    vulnerability_strike: str = ""
+    foundation_score: int = 0
+    attack_summary: str = ""
+
+    def validate(self) -> List[str]:
+        errors: List[str] = []
+        if not self.assumption_attacks:
+            errors.append("assumption_attacks is required")
+        if not self.vulnerability_strike:
+            errors.append("vulnerability_strike is required")
+        if not 0 <= self.foundation_score <= 100:
+            errors.append("foundation_score must be between 0 and 100")
+        return errors
+
+
+@dataclass
+class ThirdPartyValidation:
+    validator: str
+    item: str
+    challenge: str
+    result: ValidationResult
+    rationale: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        data = asdict(self)
+        data["result"] = self.result.value
+        return data
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ThirdPartyValidation":
+        return cls(
+            validator=data["validator"],
+            item=data["item"],
+            challenge=data["challenge"],
+            result=ValidationResult(data["result"]),
+            rationale=data["rationale"],
+        )
+
+
+@dataclass
+class RoundRecord:
+    decision_id: str
+    phase: Phase
+    round_number: int
+    payload_id: str
+    origin_packet: str = ""
+    partner_packet: str = ""
+    payload_echo_confirmed: bool = False
+    state_snapshot: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        data = asdict(self)
+        data["phase"] = self.phase.value
+        return data
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "RoundRecord":
+        return cls(
+            decision_id=data["decision_id"],
+            phase=Phase(data["phase"]),
+            round_number=data["round_number"],
+            payload_id=data["payload_id"],
+            origin_packet=data.get("origin_packet", ""),
+            partner_packet=data.get("partner_packet", ""),
+            payload_echo_confirmed=data.get("payload_echo_confirmed", False),
+            state_snapshot=data.get("state_snapshot", {}),
+        )
+
+
+@dataclass
+class DecisionCase:
+    decision_id: str
+    title: str
+    domain: str
+    created_at: str
+    owner: str
+    status: SessionStatus = SessionStatus.EXPLORING
+    high_stakes: bool = False
+    current_phase: Phase = Phase.FOUNDATION
+    current_round: int = 0
+    origin_system: str = "Claude"
+    origin_model: str = "UNKNOWN"
+    partner_system: str = "UNKNOWN"
+    partner_model: str = "UNKNOWN"
+    context_check: Optional[ContextCheck] = None
+    model_parity: Optional[ModelParityCheck] = None
+    dossier: Optional[Dossier] = None
+    foundation_score: Optional[int] = None
+    locked_decisions: List[str] = field(default_factory=list)
+    structural_vulnerabilities: List[str] = field(default_factory=list)
+    blind_spots: List[str] = field(default_factory=list)
+    flip_criteria: List[str] = field(default_factory=list)
+    third_party_log: List[ThirdPartyValidation] = field(default_factory=list)
+    rounds: List[RoundRecord] = field(default_factory=list)
+
+    def add_round(self, record: RoundRecord) -> None:
+        self.rounds.append(record)
+        self.current_phase = record.phase
+        self.current_round = record.round_number
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "decision_id": self.decision_id,
+            "title": self.title,
+            "domain": self.domain,
+            "created_at": self.created_at,
+            "owner": self.owner,
+            "status": self.status.value,
+            "high_stakes": self.high_stakes,
+            "current_phase": self.current_phase.value,
+            "current_round": self.current_round,
+            "origin_system": self.origin_system,
+            "origin_model": self.origin_model,
+            "partner_system": self.partner_system,
+            "partner_model": self.partner_model,
+            "context_check": self.context_check.to_dict() if self.context_check else None,
+            "model_parity": self.model_parity.to_dict() if self.model_parity else None,
+            "dossier": self.dossier.to_dict() if self.dossier else None,
+            "foundation_score": self.foundation_score,
+            "locked_decisions": self.locked_decisions,
+            "structural_vulnerabilities": self.structural_vulnerabilities,
+            "blind_spots": self.blind_spots,
+            "flip_criteria": self.flip_criteria,
+            "third_party_log": [item.to_dict() for item in self.third_party_log],
+            "rounds": [record.to_dict() for record in self.rounds],
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "DecisionCase":
+        case = cls(
+            decision_id=data["decision_id"],
+            title=data["title"],
+            domain=data["domain"],
+            created_at=data["created_at"],
+            owner=data["owner"],
+            status=SessionStatus(data.get("status", SessionStatus.EXPLORING.value)),
+            high_stakes=data.get("high_stakes", False),
+            current_phase=Phase(data.get("current_phase", Phase.FOUNDATION.value)),
+            current_round=data.get("current_round", 0),
+            origin_system=data.get("origin_system", "Claude"),
+            origin_model=data.get("origin_model", "UNKNOWN"),
+            partner_system=data.get("partner_system", "UNKNOWN"),
+            partner_model=data.get("partner_model", "UNKNOWN"),
+            context_check=ContextCheck.from_dict(data["context_check"]) if data.get("context_check") else None,
+            model_parity=ModelParityCheck.from_dict(data["model_parity"]) if data.get("model_parity") else None,
+            dossier=Dossier.from_dict(data["dossier"]) if data.get("dossier") else None,
+            foundation_score=data.get("foundation_score"),
+            locked_decisions=list(data.get("locked_decisions", [])),
+            structural_vulnerabilities=list(data.get("structural_vulnerabilities", [])),
+            blind_spots=list(data.get("blind_spots", [])),
+            flip_criteria=list(data.get("flip_criteria", [])),
+            third_party_log=[ThirdPartyValidation.from_dict(item) for item in data.get("third_party_log", [])],
+            rounds=[RoundRecord.from_dict(item) for item in data.get("rounds", [])],
+        )
+        return case
+
+===== ***REDACTED_PATH***/convergence-cfo-ref/src/cme/chp/gates.py =====
+"""Session gate logic for CHP."""
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Dict
+
+from cme.chp.models import SessionStatus, Verdict
+
+
+@dataclass(frozen=True)
+class GateEvaluation:
+    results: Dict[str, str]
+    verdict: Verdict
+
+
+def evaluate_r0_gate(*, solvable: bool, scoped: bool, valid: bool, worth_it: bool) -> GateEvaluation:
+    results = {
+        "Solvable": "PASS" if solvable else "FATAL",
+        "Scoped": "PASS" if scoped else "FATAL",
+        "Valid": "PASS" if valid else "FATAL",
+        "Worth_it": "PASS" if worth_it else "FATAL",
+    }
+    verdict = Verdict.PASS if all(v == "PASS" for v in results.values()) else Verdict.HALT
+    return GateEvaluation(results=results, verdict=verdict)
+
+
+def evaluate_phase_gate(round_number: int, phase_one_status: SessionStatus) -> Verdict:
+    if round_number <= 2:
+        return Verdict.PASS
+    if phase_one_status in (SessionStatus.PROVISIONAL_LOCK, SessionStatus.LOCKED, SessionStatus.CONVERGED):
+        return Verdict.PASS
+    return Verdict.PHASE_GATE_FAIL
+
+===== ***REDACTED_PATH***/convergence-cfo-ref/src/cme/chp/payloads.py =====
+"""Payload-integrity helpers for CHP packet exchange."""
+from __future__ import annotations
+
+import random
+import string
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class PayloadEnvelope:
+    route: str
+    payload_id: str
+    body: str
+
+    def render(self) -> str:
+        return (
+            f"BEGIN_PAYLOAD [{self.route}] [{self.payload_id}]\n"
+            f"{self.body}\n"
+            f"END_PAYLOAD [{self.route}] [{self.payload_id}]"
+        )
+
+
+def _make_payload_id() -> str:
+    chars = string.ascii_uppercase + string.digits
+    return "".join(random.choice(chars) for _ in range(6))
+
+
+def build_payload_envelope(body: str, *, route: str = "RX", payload_id: str | None = None) -> PayloadEnvelope:
+    return PayloadEnvelope(route=route, payload_id=payload_id or _make_payload_id(), body=body)
+
+
+def validate_payload_envelope(rendered: str) -> bool:
+    lines = [line.rstrip() for line in rendered.strip().splitlines()]
+    if len(lines) < 3:
+        return False
+    first, last = lines[0], lines[-1]
+    if not first.startswith("BEGIN_PAYLOAD [") or not last.startswith("END_PAYLOAD ["):
+        return False
+    return first.replace("BEGIN_PAYLOAD", "", 1).strip() == last.replace("END_PAYLOAD", "", 1).strip()
+
+
+def payload_echo_confirmed(route: str, payload_id: str, echo: str) -> bool:
+    return echo.strip() == f"[{route}] [{payload_id}] CONFIRMED"
+
+
+def extract_payload_id(rendered: str) -> str | None:
+    lines = [line.rstrip() for line in rendered.strip().splitlines()]
+    if not lines:
+        return None
+    first = lines[0]
+    if not first.startswith("BEGIN_PAYLOAD ["):
+        return None
+    parts = first.split("[")
+    if len(parts) < 3:
+        return None
+    payload_id = parts[2].rstrip("]")
+    return payload_id.strip()
+
+===== ***REDACTED_PATH***/convergence-cfo-ref/src/cme/chp/orchestrator.py =====
+"""High-level CHP orchestration for finance decision sessions."""
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Optional
+
+from cme.chp.foundation import foundation_verdict, validate_foundation_pair
+from cme.chp.gates import evaluate_r0_gate
+from cme.chp.models import (
+    ContextCheck,
+    DecisionCase,
+    FoundationAttack,
+    FoundationDisclosure,
+    Phase,
+    RoundRecord,
+    SessionStatus,
+    Verdict,
+)
+from cme.chp.parity import assess_model_parity
+from cme.chp.payloads import build_payload_envelope, extract_payload_id, validate_payload_envelope
+from cme.chp.registry import DecisionRegistry
+from cme.chp.validators import apply_third_party_validation
+from cme.context import ContextEngine
+
+
+@dataclass
+class CHPReport:
+    case: DecisionCase
+    foundation_disclosure: FoundationDisclosure
+    foundation_attack: FoundationAttack
+    r0_verdict: Verdict
+    foundation_verdict: Verdict
+    initial_packet: str
+
+    def render(self) -> str:
+        context_check = self.case.context_check.to_dict() if self.case.context_check else {}
+        parity = self.case.model_parity.to_dict() if self.case.model_parity else {}
+        lines = [
+            "# CHP Session",
+            f"Decision: {self.case.title}",
+            f"Status: {self.case.status.value}",
+            "",
+            "## Context Check",
+        ]
+        for key, value in context_check.items():
+            lines.append(f"- {key}: {value}")
+        lines.extend(
+            [
+                "",
+                "## Model Parity",
+            ]
+        )
+        for key, value in parity.items():
+            if value is not None:
+                lines.append(f"- {key}: {value}")
+        lines.extend(
+            [
+                "",
+                "## R0 Gate",
+                f"- verdict: {self.r0_verdict.value}",
+                "",
+                "## Foundation",
+                f"- weakest_assumptions: {len(self.foundation_disclosure.weakest_assumptions)}",
+                f"- foundation_score: {self.foundation_attack.foundation_score}",
+                f"- verdict: {self.foundation_verdict.value}",
+                "",
+                "## Initial Packet",
+                self.initial_packet,
+            ]
+        )
+        return "\n".join(lines)
+
+
+class CHPOrchestrator:
+    """Minimal orchestration layer for CHP-backed decision sessions."""
+
+    def __init__(
+        self,
+        *,
+        registry: Optional[DecisionRegistry] = None,
+        context: Optional[ContextEngine] = None,
+    ) -> None:
+        self.registry = registry or DecisionRegistry()
+        self.context = context or ContextEngine()
+
+    def run_initial_session(
+        self,
+        *,
+        case: DecisionCase,
+        foundation_disclosure: FoundationDisclosure,
+        foundation_attack: FoundationAttack,
+    ) -> CHPReport:
+        case.context_check = self._context_check(case)
+        case.model_parity = assess_model_parity(case.origin_model, case.partner_model)
+
+        r0 = evaluate_r0_gate(
+            solvable=True,
+            scoped=bool(case.dossier and case.dossier.scope),
+            valid=bool(case.dossier and case.dossier.current_state),
+            worth_it=case.high_stakes or case.domain in {"capital_allocation", "board_decision"},
+        )
+
+        foundation_errors = validate_foundation_pair(foundation_disclosure, foundation_attack)
+        if foundation_errors:
+            raise ValueError("; ".join(foundation_errors))
+
+        f_verdict = foundation_verdict(foundation_attack)
+        case.foundation_score = foundation_attack.foundation_score
+        if case.dossier:
+            case.dossier.foundation_score = foundation_attack.foundation_score
+            case.structural_vulnerabilities = list(case.dossier.structural_vulnerabilities)
+
+        if r0.verdict == Verdict.HALT:
+            case.status = SessionStatus.HALT
+        elif f_verdict == Verdict.REFRAME:
+            case.status = SessionStatus.REFRAME_REQUIRED
+        else:
+            case.status = SessionStatus.EXPLORING
+
+        packet = self._build_initial_packet(case, foundation_disclosure, foundation_attack, r0.verdict, f_verdict)
+        self.registry.add(case)
+        return CHPReport(
+            case=case,
+            foundation_disclosure=foundation_disclosure,
+            foundation_attack=foundation_attack,
+            r0_verdict=r0.verdict,
+            foundation_verdict=f_verdict,
+            initial_packet=packet,
+        )
+
+    def receive_partner_packet(
+        self,
+        *,
+        decision_id: str,
+        partner_packet: str,
+        phase: Phase,
+        round_number: int,
+        payload_echo: str = "",
+        snapshot_status: str = "EXPLORING",
+    ) -> DecisionCase:
+        case = self.registry.get(decision_id)
+        if not case:
+            raise KeyError(f"Unknown decision_id: {decision_id}")
+        if not validate_payload_envelope(partner_packet):
+            raise ValueError("partner packet failed payload envelope validation")
+        payload_id = extract_payload_id(partner_packet)
+        if not payload_id:
+            raise ValueError("partner packet is missing a payload id")
+        record = RoundRecord(
+            decision_id=decision_id,
+            phase=phase,
+            round_number=round_number,
+            payload_id=payload_id,
+            partner_packet=partner_packet,
+            payload_echo_confirmed=bool(payload_echo),
+            state_snapshot={
+                "status": snapshot_status,
+                "payload_echo": payload_echo or "MISSING",
+            },
+        )
+        case.add_round(record)
+        case.status = SessionStatus(snapshot_status)
+        return case
+
+    def apply_validation(self, decision_id: str, validation) -> DecisionCase:
+        case = self.registry.get(decision_id)
+        if not case:
+            raise KeyError(f"Unknown decision_id: {decision_id}")
+        apply_third_party_validation(case, validation)
+        return case
+
+    def _context_check(self, case: DecisionCase) -> ContextCheck:
+        related = []
+        if case.dossier and case.dossier.core_problem:
+            related = self.registry.find_related(case.dossier.core_problem)
+        exact = [item for item in related if item.title == case.title]
+        if exact:
+            assessment = "DUPLICATE"
+            action = "HALT_DUPLICATE"
+        elif related:
+            assessment = "RELATED"
+            action = "AUTO_POPULATE"
+        else:
+            assessment = "SPARSE"
+            action = "PROCEED"
+        prior_versions = ["chp-v1"] if related else []
+        return ContextCheck(
+            memory_tools="AVAILABLE",
+            prior_sessions_count=len(related),
+            prior_lock_versions=prior_versions,
+            legacy_warning=False,
+            related_locks=[item.decision_id for item in related if item.locked_decisions],
+            assessment=assessment,
+            action=action,
+        )
+
+    def _build_initial_packet(
+        self,
+        case: DecisionCase,
+        disclosure: FoundationDisclosure,
+        attack: FoundationAttack,
+        r0_verdict: Verdict,
+        foundation_gate: Verdict,
+    ) -> str:
+        dossier = case.dossier.to_dict() if case.dossier else {}
+        body_lines = [
+            f"From: {case.origin_system}",
+            f"To: {case.partner_system}",
+            "Subject: CHP - Phase 0 Round 0",
+            "",
+            "CORE_PROBLEM_STATEMENT:",
+            dossier.get("core_problem", "UNKNOWN"),
+            "",
+            "R0_GATE:",
+            f"- verdict: {r0_verdict.value}",
+            "",
+            "FOUNDATION_DISCLOSURE:",
+        ]
+        for idx, item in enumerate(disclosure.weakest_assumptions, 1):
+            body_lines.append(f"{idx}. {item}")
+        body_lines.append("INVALIDATION_CONDITIONS:")
+        for idx, item in enumerate(disclosure.invalidation_conditions, 1):
+            body_lines.append(f"{idx}. {item}")
+        body_lines.append(f"KEY_VULNERABILITY: {disclosure.key_vulnerability}")
+        body_lines.extend(
+            [
+                "",
+                "FOUNDATION_ATTACK:",
+                f"- score: {attack.foundation_score}",
+                f"- verdict: {foundation_gate.value}",
+                f"- summary: {attack.attack_summary}",
+                "",
+                "DOSSIER:",
+                str(dossier),
+            ]
+        )
+        envelope = build_payload_envelope("\n".join(body_lines))
+        return envelope.render()
+
+===== ***REDACTED_PATH***/convergence-cfo-ref/src/cme/chp/registry.py =====
+"""Registry for CHP decision cases."""
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Dict, List, Optional
+
+from cme.chp.models import DecisionCase, SessionStatus
+
+
+@dataclass
+class DecisionRegistry:
+    _cases: Dict[str, DecisionCase] = field(default_factory=dict)
+
+    def add(self, case: DecisionCase) -> None:
+        self._cases[case.decision_id] = case
+
+    def get(self, decision_id: str) -> Optional[DecisionCase]:
+        return self._cases.get(decision_id)
+
+    def find_related(self, text: str) -> List[DecisionCase]:
+        query = text.lower()
+        hits: List[DecisionCase] = []
+        for case in self._cases.values():
+            if query in case.title.lower() or query in case.domain.lower():
+                hits.append(case)
+                continue
+            if case.dossier and case.dossier.core_problem and query in case.dossier.core_problem.lower():
+                hits.append(case)
+        return hits
+
+    def locked(self) -> List[DecisionCase]:
+        return [case for case in self._cases.values() if case.status == SessionStatus.LOCKED]
+
+    def all(self) -> List[DecisionCase]:
+        return list(self._cases.values())
+
+    def save(self, path: str | Path) -> None:
+        target = Path(path)
+        data = {decision_id: case.to_dict() for decision_id, case in self._cases.items()}
+        target.write_text(json.dumps(data, indent=2))
+
+    @classmethod
+    def load(cls, path: str | Path) -> "DecisionRegistry":
+        target = Path(path)
+        if not target.exists():
+            return cls()
+        raw = json.loads(target.read_text())
+        registry = cls()
+        for decision_id, case_data in raw.items():
+            registry._cases[decision_id] = DecisionCase.from_dict(case_data)
+        return registry
+
+===== ***REDACTED_PATH***/convergence-cfo-ref/src/cme/chp/validators.py =====
+"""Third-party validation helpers for CHP lock progression."""
+from __future__ import annotations
+
+from cme.chp.models import DecisionCase, SessionStatus, ThirdPartyValidation, ValidationResult
+
+
+def apply_third_party_validation(case: DecisionCase, validation: ThirdPartyValidation) -> SessionStatus:
+    case.third_party_log.append(validation)
+    if validation.result == ValidationResult.CONFIRM:
+        case.status = SessionStatus.LOCKED
+        if validation.item not in case.locked_decisions:
+            case.locked_decisions.append(validation.item)
+    else:
+        case.status = SessionStatus.EXPLORING
+        case.flip_criteria.append(f"Validation rejected: {validation.item}")
+    return case.status
+
+===== ***REDACTED_PATH***/convergence-cfo-ref/src/cme/chp/rounds.py =====
+"""Round progression helpers for CHP sessions."""
+from __future__ import annotations
+
+from cme.chp.models import Phase
+
+
+def next_round(phase: Phase, round_number: int) -> tuple[Phase, int]:
+    if phase == Phase.FOUNDATION:
+        return Phase.SPEC, 1
+    if phase == Phase.SPEC and round_number >= 2:
+        return Phase.IMPLEMENTATION, 3
+    return phase, round_number + 1
+
+===== ***REDACTED_PATH***/convergence-cfo-ref/src/cme/chp/foundation.py =====
+"""Foundation-stage helpers for CHP."""
+from __future__ import annotations
+
+from cme.chp.models import FoundationAttack, FoundationDisclosure, Verdict
+
+
+def foundation_verdict(attack: FoundationAttack) -> Verdict:
+    return Verdict.PASS if attack.foundation_score >= 70 else Verdict.REFRAME
+
+
+def validate_foundation_pair(
+    disclosure: FoundationDisclosure, attack: FoundationAttack
+) -> list[str]:
+    errors = disclosure.validate() + attack.validate()
+    if disclosure.weakest_assumptions and attack.assumption_attacks:
+        if len(attack.assumption_attacks) < min(3, len(disclosure.weakest_assumptions)):
+            errors.append("attack must address each disclosed weak assumption")
+    return errors
+
+===== ***REDACTED_PATH***/convergence-cfo-ref/src/cme/chp/devil.py =====
+"""Devil's advocate helpers for CHP sessions."""
+from __future__ import annotations
+
+
+def merge_structural_vulnerabilities(existing: list[str], new_items: list[str]) -> list[str]:
+    merged = list(existing)
+    for item in new_items:
+        if item not in merged:
+            merged.append(item)
+    return merged
+
+===== ***REDACTED_PATH***/convergence-cfo-ref/src/cme/chp/parity.py =====
+"""Model parity assessment for CHP sessions."""
+from __future__ import annotations
+
+from cme.chp.models import ModelParityCheck, ModelTier
+
+
+def _infer_tier(model_name: str) -> ModelTier:
+    name = model_name.lower()
+    if any(token in name for token in ("opus", "max", "frontier")):
+        return ModelTier.FRONTIER
+    if any(token in name for token in ("gpt-5", "claude 4", "claude-4", "high")):
+        return ModelTier.HIGH
+    if any(token in name for token in ("sonnet", "4o", "mid", "gpt-4")):
+        return ModelTier.MID
+    if any(token in name for token in ("mini", "small", "haiku")):
+        return ModelTier.SMALL
+    return ModelTier.UNKNOWN
+
+
+def assess_model_parity(origin_model: str, partner_model: str) -> ModelParityCheck:
+    origin_tier = _infer_tier(origin_model)
+    partner_tier = _infer_tier(partner_model)
+    if origin_tier == ModelTier.UNKNOWN or partner_tier == ModelTier.UNKNOWN:
+        delta = "MINOR"
+        advisory = "One or both model tiers are unknown. Treat parity as advisory only."
+    else:
+        gap = abs(list(ModelTier).index(origin_tier) - list(ModelTier).index(partner_tier))
+        if gap == 0:
+            delta = "NONE"
+            advisory = None
+        elif gap == 1:
+            delta = "MINOR"
+            advisory = "Slight analytical weight difference. Monitor for dominance bias."
+        else:
+            delta = "SIGNIFICANT"
+            advisory = None
+    return ModelParityCheck(
+        origin=origin_model,
+        partner=partner_model,
+        delta=delta,
+        advisory=advisory,
+    )
+
+===== ***REDACTED_PATH***/convergence-cfo-ref/src/cme/chp/dossier.py =====
+"""Helpers for building and validating CHP dossiers."""
+from __future__ import annotations
+
+from cme.chp.models import Dossier
+
+
+def validate_dossier(dossier: Dossier) -> list[str]:
+    return dossier.validate()
+
+===== ***REDACTED_PATH***/convergence-cfo-ref/src/cme/chp/__init__.py =====
+"""Consensus Hardening Protocol primitives.
+
+CHP is the decision-governance layer for high-stakes, cross-model finance
+workflows. This package provides the canonical data model, gate logic,
+payload-integrity helpers, and an in-memory registry that higher-level finance
+workflows can build on.
+"""
+
+from cme.chp.models import (
+    ContextCheck,
+    DecisionCase,
+    Dossier,
+    FoundationAttack,
+    FoundationDisclosure,
+    ModelParityCheck,
+    ModelTier,
+    Phase,
+    RoundRecord,
+    SessionStatus,
+    ThirdPartyValidation,
+    ValidationResult,
+    Verdict,
+)
+from cme.chp.parity import assess_model_parity
+from cme.chp.payloads import (
+    PayloadEnvelope,
+    build_payload_envelope,
+    extract_payload_id,
+    payload_echo_confirmed,
+    validate_payload_envelope,
+)
+from cme.chp.gates import evaluate_phase_gate, evaluate_r0_gate
+from cme.chp.orchestrator import CHPOrchestrator, CHPReport
+from cme.chp.registry import DecisionRegistry
+from cme.chp.validators import apply_third_party_validation
+
+__all__ = [
+    "ContextCheck",
+    "DecisionCase",
+    "DecisionRegistry",
+    "Dossier",
+    "FoundationAttack",
+    "FoundationDisclosure",
+    "CHPOrchestrator",
+    "CHPReport",
+    "ModelParityCheck",
+    "ModelTier",
+    "Phase",
+    "PayloadEnvelope",
+    "RoundRecord",
+    "SessionStatus",
+    "ThirdPartyValidation",
+    "ValidationResult",
+    "Verdict",
+    "apply_third_party_validation",
+    "assess_model_parity",
+    "build_payload_envelope",
+    "evaluate_phase_gate",
+    "evaluate_r0_gate",
+    "extract_payload_id",
+    "payload_echo_confirmed",
+    "validate_payload_envelope",
+]
+
+===== ***REDACTED_PATH***/convergence-cfo-ref/src/cme/chp/accuracy.py =====
+
+===== ***REDACTED_PATH***/convergence-cfo-ref/src/cme/chp/adversary_agent.py =====
+
+===== ***REDACTED_PATH***/convergence-cfo-ref/src/cme/chp/runner.py =====
+
+===== ***REDACTED_PATH***/convergence-cfo-ref/src/cme/agent.py =====
+"""MeshAgent base class.
+
+A MeshAgent wraps a domain specialization (finance, strategy, legal, ...) and
+uses the four subsystems:
+
+    protocol  -> expansion/compression reasoning on each turn
+    context   -> shared organizational knowledge (read relevant, write insights)
+    playbook  -> evolving, self-improving behavioural rules
+    reflector -> produce insights from each turn to feed the curator
+
+Subclasses implement ``expand`` and ``compress`` — the rest is handled by the
+framework. Each turn emits a ``TurnResult`` which the orchestrator passes to
+the Bridge Framework.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
+
+from cme.context import ContextEngine
+from cme.playbook import Curator, DeltaOp, Playbook, Reflector
+from cme.protocol import (
+    CognitiveMeshProtocol,
+    CompressionStep,
+    ConfidenceLevel,
+    ExpansionStep,
+    ReasoningTrace,
+)
+
+
+@dataclass
+class AgentCapability:
+    domain: str
+    produces: List[str] = field(default_factory=list)  # output keys it emits
+    consumes: List[str] = field(default_factory=list)  # expected inputs
+
+
+@dataclass
+class TurnResult:
+    agent: str
+    trace: ReasoningTrace
+    deltas_applied: List[str]
+    outputs: Dict[str, Any]
+    handoff_notes: List[str] = field(default_factory=list)
+
+
+class MeshAgent:
+    def __init__(
+        self,
+        name: str,
+        capability: AgentCapability,
+        *,
+        protocol: Optional[CognitiveMeshProtocol] = None,
+        playbook: Optional[Playbook] = None,
+    ) -> None:
+        self.name = name
+        self.capability = capability
+        self.protocol = protocol or CognitiveMeshProtocol()
+        self.playbook = playbook or Playbook(name=f"{name}-playbook")
+        self._reflector = Reflector()
+        self._curator = Curator()
+
+    # Subclasses override ---------------------------------------------------
+
+    def expand(self, problem: str, context: Dict[str, Any]) -> List[ExpansionStep]:
+        raise NotImplementedError
+
+    def compress(
+        self,
+        problem: str,
+        expansion: List[ExpansionStep],
+        context: Dict[str, Any],
+    ) -> "tuple[str, List[CompressionStep], ConfidenceLevel, str, Dict[str, Any]]":
+        """Return (recommendation, compression_steps, confidence, what_would_change, outputs)."""
+        raise NotImplementedError
+
+    # ---------------------------------------------------------------------
+
+    def act(
+        self,
+        problem: str,
+        *,
+        shared_context: ContextEngine,
+        cycles: int = 1,
+    ) -> TurnResult:
+        ctx_snapshot = shared_context.snapshot_for(self.name, problem, k=6)
+
+        # Expand + compress via protocol
+        outputs_holder: Dict[str, Any] = {}
+
+        def _compress(p: str, exp: List[ExpansionStep], ctx: Dict[str, Any]):
+            rec, steps, conf, wwc, outs = self.compress(p, exp, ctx)
+            outputs_holder.update(outs)
+            return rec, steps, conf, wwc
+
+        trace = self.protocol.run(
+            problem,
+            expansion_fn=self.expand,
+            compression_fn=_compress,
+            context=ctx_snapshot,
+            cycles=cycles,
+        )
+
+        # Write recommendation back to shared context
+        shared_context.write(
+            content=f"[{self.name}] {trace.recommendation}",
+            source_agent=self.name,
+            importance=self._importance_from_confidence(trace.confidence),
+            tags=[self.capability.domain, "recommendation"],
+        )
+        shared_context.record_event(
+            actor=self.name,
+            action="recommend",
+            object_=problem[:60],
+            confidence=trace.confidence.value,
+        )
+
+        # Reflect + curate -> playbook delta
+        outcome = (
+            "failure"
+            if self.protocol.detect_failure_mode(trace)
+            else ("partial" if trace.confidence == ConfidenceLevel.LOW else "success")
+        )
+        reflection = self._reflector.reflect(
+            trajectory_summary=trace.recommendation,
+            outcome=outcome,
+            current_playbook=self.playbook,
+            grounding_issues=[g.risk_flag for g in trace.grounding if g.risk_flag],
+        )
+        ops: List[DeltaOp] = self._curator.curate(reflection, self.playbook)
+        changelog = self.playbook.apply(ops)
+
+        handoff_notes = [
+            f"confidence={trace.confidence.value}",
+            f"produces={self.capability.produces}",
+        ]
+        failure = self.protocol.detect_failure_mode(trace)
+        if failure:
+            handoff_notes.append(f"warning:{failure}")
+
+        return TurnResult(
+            agent=self.name,
+            trace=trace,
+            deltas_applied=changelog,
+            outputs=outputs_holder,
+            handoff_notes=handoff_notes,
+        )
+
+    @staticmethod
+    def _importance_from_confidence(c: ConfidenceLevel) -> float:
+        return {
+            ConfidenceLevel.HIGH: 0.85,
+            ConfidenceLevel.MEDIUM: 0.6,
+            ConfidenceLevel.LOW: 0.3,
+        }[c]
+
+===== ***REDACTED_PATH***/convergence-cfo-ref/src/cme/protocol.py =====
+"""Cognitive Mesh Protocol.
+
+Structured expansion/compression reasoning with grounding checks, following the
+cognitive-mesh-protocol skill spec. Each agent invocation produces a
+``ReasoningTrace`` that captures the breathing cycle, grounding verdicts, and
+final recommendation — so downstream agents can audit and refine the reasoning
+rather than just consuming the conclusion.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Callable, List, Optional
+
+
+class ProblemType(str, Enum):
+    STRATEGIC = "strategic"
+    ANALYTICAL = "analytical"
+    CREATIVE = "creative"
+    TECHNICAL = "technical"
+
+
+class ConfidenceLevel(str, Enum):
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
+
+@dataclass
+class ExpansionStep:
+    label: str
+    content: str
+    uncertainty_flags: List[str] = field(default_factory=list)
+
+
+@dataclass
+class CompressionStep:
+    label: str
+    content: str
+
+
+@dataclass
+class GroundingCheck:
+    claim: str
+    source: str  # "verified", "inferred", "pattern-match"
+    confidence: ConfidenceLevel
+    risk_flag: Optional[str] = None
+
+
+@dataclass
+class ReasoningTrace:
+    problem: str
+    problem_type: ProblemType
+    classification_rationale: str
+    expansion: List[ExpansionStep] = field(default_factory=list)
+    compression: List[CompressionStep] = field(default_factory=list)
+    grounding: List[GroundingCheck] = field(default_factory=list)
+    recommendation: str = ""
+    confidence: ConfidenceLevel = ConfidenceLevel.MEDIUM
+    what_would_change: str = ""
+    cycle_count: int = 1
+
+    def render(self) -> str:
+        """Render the trace in the SKILL-defined response format."""
+        lines = [
+            "## Problem Classification",
+            f"{self.problem_type.value.title()} — {self.classification_rationale}",
+            "",
+            "## Reasoning Process",
+        ]
+        lines.append(f"### Expansion Cycle (count={self.cycle_count})")
+        for i, step in enumerate(self.expansion, 1):
+            lines.append(f"{i}. **{step.label}** — {step.content}")
+            for flag in step.uncertainty_flags:
+                lines.append(f"   - ⚠ {flag}")
+        lines.append("")
+        lines.append("### Compression Cycle")
+        for i, step in enumerate(self.compression, 1):
+            lines.append(f"{i}. **{step.label}** — {step.content}")
+        lines.append("")
+        lines.append("## Grounding Check")
+        for g in self.grounding:
+            risk = f" [RISK: {g.risk_flag}]" if g.risk_flag else ""
+            lines.append(
+                f"- {g.claim} :: source={g.source} confidence={g.confidence.value}{risk}"
+            )
+        lines.append("")
+        lines.append("## Final Recommendation")
+        lines.append(f"{self.recommendation}")
+        lines.append(f"Confidence: **{self.confidence.value}**")
+        lines.append("")
+        lines.append("## What Would Change This")
+        lines.append(self.what_would_change or "—")
+        return "\n".join(lines)
+
+
+# --- Hallucination-risk heuristics ----------------------------------------
+
+_RISK_PATTERNS = (
+    "studies show",
+    "research indicates",
+    "it is well known",
+    "industry standard is",
+)
+
+
+def detect_hallucination_risk(text: str) -> Optional[str]:
+    lower = text.lower()
+    for pat in _RISK_PATTERNS:
+        if pat in lower:
+            return f"unsourced authority phrase: '{pat}'"
+    # Specific numeric confidence without anchor
+    import re
+
+    if re.search(r"\b(\d{2,3})%\b", text) and "estimated" not in lower and "assume" not in lower:
+        return "specific percentage without stated source"
+    return None
+
+
+class CognitiveMeshProtocol:
+    """Orchestrates the expansion/compression cycle for a single reasoning pass.
+
+    An agent supplies two callbacks:
+        - ``expansion_fn(problem, context) -> list[ExpansionStep]``
+        - ``compression_fn(problem, expansion, context) -> (recommendation, list[CompressionStep])``
+
+    The protocol adds problem classification, grounding checks, failure-mode
+    detection, and renders a structured trace.
+    """
+
+    def __init__(
+        self,
+        *,
+        classifier: Optional[Callable[[str], "tuple[ProblemType, str]"]] = None,
+    ) -> None:
+        self._classifier = classifier or self._default_classifier
+
+    # --- classification ----------------------------------------------------
+
+    @staticmethod
+    def _default_classifier(problem: str) -> "tuple[ProblemType, str]":
+        p = problem.lower()
+        if any(w in p for w in ("market", "revenue", "strategy", "competitor", "invest", "budget")):
+            return ProblemType.STRATEGIC, "mentions strategic/market/financial terms"
+        if any(w in p for w in ("design", "architecture", "user experience", "workflow")):
+            return ProblemType.CREATIVE, "design/architecture framing"
+        if any(w in p for w in ("debug", "implementation", "algorithm", "api", "database")):
+            return ProblemType.TECHNICAL, "implementation-focused terminology"
+        return ProblemType.ANALYTICAL, "default — multi-variable analysis"
+
+    # --- public API --------------------------------------------------------
+
+    def run(
+        self,
+        problem: str,
+        *,
+        expansion_fn: Callable[[str, dict], List[ExpansionStep]],
+        compression_fn: Callable[[str, List[ExpansionStep], dict], "tuple[str, List[CompressionStep], ConfidenceLevel, str]"],
+        context: Optional[dict] = None,
+        cycles: int = 1,
+    ) -> ReasoningTrace:
+        context = context or {}
+        ptype, rationale = self._classifier(problem)
+        trace = ReasoningTrace(
+            problem=problem,
+            problem_type=ptype,
+            classification_rationale=rationale,
+            cycle_count=cycles,
+        )
+
+        all_expansion: List[ExpansionStep] = []
+        for _ in range(max(1, cycles)):
+            steps = expansion_fn(problem, context)
+            all_expansion.extend(steps)
+        trace.expansion = all_expansion
+
+        rec, comp_steps, conf, what_would_change = compression_fn(
+            problem, all_expansion, context
+        )
+        trace.compression = comp_steps
+        trace.recommendation = rec
+        trace.confidence = conf
+        trace.what_would_change = what_would_change
+
+        trace.grounding = self._ground(trace)
+        return trace
+
+    # --- grounding ---------------------------------------------------------
+
+    def _ground(self, trace: ReasoningTrace) -> List[GroundingCheck]:
+        checks: List[GroundingCheck] = []
+        for step in trace.expansion:
+            risk = detect_hallucination_risk(step.content)
+            if risk:
+                checks.append(
+                    GroundingCheck(
+                        claim=step.content[:80] + "…",
+                        source="pattern-match",
+                        confidence=ConfidenceLevel.LOW,
+                        risk_flag=risk,
+                    )
+                )
+        rec_risk = detect_hallucination_risk(trace.recommendation)
+        checks.append(
+            GroundingCheck(
+                claim=f"recommendation: {trace.recommendation[:60]}…",
+                source="inferred" if rec_risk else "verified",
+                confidence=trace.confidence,
+                risk_flag=rec_risk,
+            )
+        )
+        return checks
+
+    # --- failure-mode detection -------------------------------------------
+
+    @staticmethod
+    def detect_failure_mode(trace: ReasoningTrace) -> Optional[str]:
+        texts = [s.content for s in trace.expansion]
+        if len(texts) >= 3 and len(set(t[:40] for t in texts)) == 1:
+            return "FOSSIL_STATE: repeating same idea across expansion steps"
+        if len(trace.compression) == 0 and len(texts) > 6:
+            return "CHAOS_STATE: wide expansion with no compression"
+        risky = sum(1 for g in trace.grounding if g.risk_flag)
+        if risky >= 3:
+            return "HALLUCINATION_RISK: multiple ungrounded claims"
+        return None
+
+===== ***REDACTED_PATH***/convergence-cfo-ref/src/cme/context.py =====
+"""Context Engine.
+
+Implements the Context Engineering Framework's memory architecture:
+    - Layered short-term / long-term memory with temporal + importance weighting
+    - Fixed-schema self-baking: Entity map, Event record, Task tree
+    - Context selection by semantic relevance, recency, frequency
+    - Multi-agent context sharing via shared memory with structured messages
+
+Uses a deterministic token-based similarity (no external embedding model) so
+the demo is fully offline. Swap ``_score_relevance`` for a real embedding model
+in production.
+"""
+from __future__ import annotations
+
+import json
+import math
+import re
+import threading
+import time
+import uuid
+from collections import Counter, defaultdict
+from dataclasses import asdict, dataclass, field
+from typing import Any, Dict, Iterable, List, Optional
+
+
+# --- Schema ---------------------------------------------------------------
+
+
+@dataclass
+class Entity:
+    id: str
+    type: str  # "org", "person", "product", "metric", ...
+    attributes: Dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def display(self) -> str:
+        name = self.attributes.get("name", self.id)
+        return f"{self.type}:{name}"
+
+
+@dataclass
+class Event:
+    timestamp: float
+    actor: str
+    action: str
+    object: str
+    payload: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class Task:
+    id: str
+    goal: str
+    status: str = "open"  # open | in_progress | done | blocked
+    parent: Optional[str] = None
+    subtasks: List[str] = field(default_factory=list)
+    owner: Optional[str] = None
+
+
+@dataclass
+class ContextEntry:
+    id: str
+    content: str
+    source_agent: str
+    timestamp: float
+    importance: float = 0.5  # 0..1
+    access_count: int = 0
+    tags: List[str] = field(default_factory=list)
+
+
+# --- Simple lexical relevance --------------------------------------------
+
+_TOKEN_RE = re.compile(r"[A-Za-z][A-Za-z0-9_]+")
+
+
+def _tokens(text: str) -> List[str]:
+    return [t.lower() for t in _TOKEN_RE.findall(text)]
+
+
+def _cosine(a: Counter, b: Counter) -> float:
+    if not a or not b:
+        return 0.0
+    dot = sum(a[t] * b.get(t, 0) for t in a)
+    na = math.sqrt(sum(v * v for v in a.values()))
+    nb = math.sqrt(sum(v * v for v in b.values()))
+    return dot / (na * nb) if na and nb else 0.0
+
+
+# --- Engine ---------------------------------------------------------------
+
+
+class ContextEngine:
+    """Shared organizational context for the mesh.
+
+    Thread-safe so multiple agents can read/write concurrently. Short-term
+    entries fall out after ``short_term_ttl`` seconds unless promoted by
+    importance. Long-term storage is append-only with delta-update semantics.
+    """
+
+    def __init__(
+        self,
+        *,
+        short_term_ttl: float = 300.0,
+        short_term_threshold: float = 0.3,  # w_temporal threshold
+        long_term_threshold: float = 0.6,  # w_importance threshold
+    ) -> None:
+        self.short_term_ttl = short_term_ttl
+        self.short_term_threshold = short_term_threshold
+        self.long_term_threshold = long_term_threshold
+
+        self._short_term: Dict[str, ContextEntry] = {}
+        self._long_term: Dict[str, ContextEntry] = {}
+        self._entities: Dict[str, Entity] = {}
+        self._events: List[Event] = []
+        self._tasks: Dict[str, Task] = {}
+        self._lock = threading.RLock()
+
+    # --- Entity / Event / Task -------------------------------------------
+
+    def upsert_entity(self, entity: Entity) -> None:
+        with self._lock:
+            existing = self._entities.get(entity.id)
+            if existing:
+                existing.attributes.update(entity.attributes)
+            else:
+                self._entities[entity.id] = entity
+
+    def record_event(self, actor: str, action: str, object_: str, **payload: Any) -> Event:
+        evt = Event(
+            timestamp=time.time(),
+            actor=actor,
+            action=action,
+            object=object_,
+            payload=payload,
+        )
+        with self._lock:
+            self._events.append(evt)
+        return evt
+
+    def add_task(self, task: Task) -> None:
+        with self._lock:
+            self._tasks[task.id] = task
+            if task.parent and task.parent in self._tasks:
+                parent = self._tasks[task.parent]
+                if task.id not in parent.subtasks:
+                    parent.subtasks.append(task.id)
+
+    def update_task(self, task_id: str, **changes: Any) -> None:
+        with self._lock:
+            if task_id in self._tasks:
+                for k, v in changes.items():
+                    setattr(self._tasks[task_id], k, v)
+
+    # --- Text context entries (for agent-to-agent sharing) ---------------
+
+    def write(
+        self,
+        content: str,
+        *,
+        source_agent: str,
+        importance: float = 0.5,
+        tags: Optional[List[str]] = None,
+    ) -> str:
+        """Write a context entry. High-importance entries go straight to long-term."""
+        entry = ContextEntry(
+            id=str(uuid.uuid4())[:8],
+            content=content,
+            source_agent=source_agent,
+            timestamp=time.time(),
+            importance=max(0.0, min(1.0, importance)),
+            tags=tags or [],
+        )
+        with self._lock:
+            if entry.importance >= self.long_term_threshold:
+                self._long_term[entry.id] = entry
+            else:
+                self._short_term[entry.id] = entry
+        return entry.id
+
+    def select(
+        self,
+        query: str,
+        *,
+        k: int = 5,
+        agent: Optional[str] = None,
+    ) -> List[ContextEntry]:
+        """Select top-k relevant entries for a query.
+
+        Combines: semantic (lexical-cosine), recency, frequency, importance.
+        Enforces the Minimal Sufficiency Principle by returning at most ``k``.
+        Removes near-duplicates (cosine > 0.85).
+        """
+        with self._lock:
+            self._promote_short_to_long()
+            q_tokens = Counter(_tokens(query))
+            pool: List[ContextEntry] = list(self._short_term.values()) + list(
+                self._long_term.values()
+            )
+            now = time.time()
+            scored: List[tuple[float, ContextEntry]] = []
+            seen_counters: List[Counter] = []
+            for entry in pool:
+                e_tokens = Counter(_tokens(entry.content))
+                # Semantic dedupe
+                if any(_cosine(e_tokens, c) > 0.85 for c in seen_counters):
+                    continue
+                semantic = _cosine(q_tokens, e_tokens)
+                age = now - entry.timestamp
+                recency = math.exp(-age / (self.short_term_ttl * 2))
+                freq = math.log1p(entry.access_count) / 5.0
+                score = (
+                    0.5 * semantic
+                    + 0.2 * recency
+                    + 0.1 * freq
+                    + 0.2 * entry.importance
+                )
+                if agent and entry.source_agent == agent:
+                    score += 0.05
+                scored.append((score, entry))
+                seen_counters.append(e_tokens)
+
+            scored.sort(key=lambda x: x[0], reverse=True)
+            top = [e for _, e in scored[:k]]
+            for e in top:
+                e.access_count += 1
+            return top
+
+    def _promote_short_to_long(self) -> None:
+        now = time.time()
+        expired_ids = []
+        for eid, entry in self._short_term.items():
+            age = now - entry.timestamp
+            if entry.importance >= self.long_term_threshold:
+                self._long_term[eid] = entry
+                expired_ids.append(eid)
+            elif age > self.short_term_ttl:
+                # Drop unless it has been accessed repeatedly
+                if entry.access_count >= 3:
+                    self._long_term[eid] = entry
+                expired_ids.append(eid)
+        for eid in expired_ids:
+            self._short_term.pop(eid, None)
+
+    # --- Snapshot for agents ---------------------------------------------
+
+    def snapshot_for(self, agent_name: str, query: str, k: int = 5) -> Dict[str, Any]:
+        """Produce the structured context package passed to an agent invocation."""
+        with self._lock:
+            relevant = self.select(query, k=k, agent=agent_name)
+            recent_events = self._events[-10:]
+            return {
+                "agent": agent_name,
+                "query": query,
+                "entities": [asdict(e) for e in self._entities.values()],
+                "recent_events": [asdict(e) for e in recent_events],
+                "active_tasks": [
+                    asdict(t) for t in self._tasks.values() if t.status != "done"
+                ],
+                "relevant_notes": [
+                    {
+                        "id": e.id,
+                        "content": e.content,
+                        "source_agent": e.source_agent,
+                        "tags": e.tags,
+                        "importance": e.importance,
+                    }
+                    for e in relevant
+                ],
+            }
+
+    def dump(self) -> Dict[str, Any]:
+        with self._lock:
+            return {
+                "entities": {k: asdict(v) for k, v in self._entities.items()},
+                "events": [asdict(e) for e in self._events],
+                "tasks": {k: asdict(v) for k, v in self._tasks.items()},
+                "short_term": {k: asdict(v) for k, v in self._short_term.items()},
+                "long_term": {k: asdict(v) for k, v in self._long_term.items()},
+            }
+
+    def dump_json(self) -> str:
+        return json.dumps(self.dump(), indent=2, default=str)
+
+===== ***REDACTED_PATH***/convergence-cfo-ref/src/cme/playbook.py =====
+"""Agentic Context Engineering (ACE) Playbook.
+
+Evolving context playbooks with Generator / Reflector / Curator roles.
+Uses non-LLM logic to merge delta updates, preventing context collapse.
+
+Key properties from the skill spec:
+    - Bullets are structured: {id, helpful, harmful, content, section}
+    - Never regenerate; only add/increment/merge deltas
+    - Growth phase: append bullets with new IDs
+    - Refinement phase: prune harmful/helpful < 0.5, dedupe on >0.85 similarity
+"""
+from __future__ import annotations
+
+import json
+import math
+import re
+from collections import Counter
+from dataclasses import asdict, dataclass, field
+from typing import Any, Dict, List, Optional
+
+
+SECTIONS = (
+    "strategies_and_hard_rules",
+    "useful_code_snippets",
+    "troubleshooting_and_pitfalls",
+    "apis_to_use_for_specific_information",
+    "verification_checklist",
+    "domain_concepts",
+)
+
+_PREFIX = {
+    "strategies_and_hard_rules": "shr",
+    "useful_code_snippets": "code",
+    "troubleshooting_and_pitfalls": "ts",
+    "apis_to_use_for_specific_information": "api",
+    "verification_checklist": "chk",
+    "domain_concepts": "dom",
+}
+
+
+_TOKEN_RE = re.compile(r"[A-Za-z][A-Za-z0-9_]+")
+
+
+def _tokens(s: str) -> Counter:
+    return Counter(t.lower() for t in _TOKEN_RE.findall(s))
+
+
+def _cosine(a: Counter, b: Counter) -> float:
+    if not a or not b:
+        return 0.0
+    dot = sum(a[t] * b.get(t, 0) for t in a)
+    na = math.sqrt(sum(v * v for v in a.values()))
+    nb = math.sqrt(sum(v * v for v in b.values()))
+    return dot / (na * nb) if na and nb else 0.0
+
+
+@dataclass
+class Bullet:
+    id: str
+    section: str
+    content: str
+    helpful: int = 0
+    harmful: int = 0
+
+    def render(self) -> str:
+        return f"[{self.id}] helpful={self.helpful} harmful={self.harmful} :: {self.content}"
+
+    @property
+    def utility(self) -> float:
+        total = self.helpful + self.harmful
+        if total == 0:
+            return 0.5
+        return self.helpful / total
+
+
+@dataclass
+class DeltaOp:
+    type: str  # ADD | INCREMENT | MERGE | PRUNE
+    section: Optional[str] = None
+    content: Optional[str] = None
+    target_id: Optional[str] = None
+    tag: Optional[str] = None  # helpful | harmful
+    rationale: str = ""
+
+
+@dataclass
+class Reflection:
+    reasoning: str
+    key_insight: str
+    correct_approach: str
+    bullet_tags: List[Dict[str, str]] = field(default_factory=list)
+
+
+class Playbook:
+    """Structured, evolving playbook for an agent.
+
+    Storage is in-memory + JSON-serializable. Merge operations are
+    non-LLM and deterministic.
+    """
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.bullets: Dict[str, Bullet] = {}
+        self._counters: Dict[str, int] = {s: 0 for s in SECTIONS}
+
+    # --- Generator-side read ---------------------------------------------
+
+    def render_for_generator(self, sections: Optional[List[str]] = None) -> str:
+        sects = sections or list(SECTIONS)
+        lines = [f"# PLAYBOOK: {self.name}", ""]
+        for sect in sects:
+            bullets = [b for b in self.bullets.values() if b.section == sect]
+            if not bullets:
+                continue
+            lines.append(f"## {sect.upper().replace('_', ' ')}")
+            bullets.sort(key=lambda b: (-b.utility, b.id))
+            for b in bullets:
+                lines.append(b.render())
+            lines.append("")
+        return "\n".join(lines)
+
+    # --- Delta operations -------------------------------------------------
+
+    def apply(self, ops: List[DeltaOp]) -> List[str]:
+        """Apply a list of deltas. Returns a human-readable changelog."""
+        log: List[str] = []
+        for op in ops:
+            if op.type == "ADD" and op.section and op.content:
+                # Check for near-duplicate
+                dup = self._find_duplicate(op.section, op.content)
+                if dup:
+                    dup.helpful += 1
+                    log.append(f"DEDUP {dup.id} (matched new content)")
+                    continue
+                new_id = self._next_id(op.section)
+                self.bullets[new_id] = Bullet(
+                    id=new_id, section=op.section, content=op.content.strip()
+                )
+                log.append(f"ADD   {new_id}: {op.content[:60]}")
+            elif op.type == "INCREMENT" and op.target_id and op.tag:
+                b = self.bullets.get(op.target_id)
+                if b:
+                    if op.tag == "helpful":
+                        b.helpful += 1
+                    elif op.tag == "harmful":
+                        b.harmful += 1
+                    log.append(f"INC   {b.id} {op.tag} -> h={b.helpful}/x={b.harmful}")
+            elif op.type == "PRUNE" and op.target_id:
+                if op.target_id in self.bullets:
+                    del self.bullets[op.target_id]
+                    log.append(f"PRUNE {op.target_id}")
+            elif op.type == "MERGE" and op.target_id and op.content:
+                b = self.bullets.get(op.target_id)
+                if b:
+                    b.content = op.content.strip()
+                    b.helpful += 1
+                    log.append(f"MERGE {b.id}: content revised")
+        return log
+
+    def _next_id(self, section: str) -> str:
+        self._counters[section] = self._counters.get(section, 0) + 1
+        return f"{_PREFIX[section]}-{self._counters[section]:05d}"
+
+    def _find_duplicate(self, section: str, content: str) -> Optional[Bullet]:
+        ct = _tokens(content)
+        for b in self.bullets.values():
+            if b.section != section:
+                continue
+            if _cosine(_tokens(b.content), ct) > 0.85:
+                return b
+        return None
+
+    # --- Refinement -------------------------------------------------------
+
+    def refine(self) -> List[str]:
+        """Periodic pruning / consolidation. Returns changelog."""
+        log: List[str] = []
+        # 1. Prune low-utility bullets with enough samples
+        to_prune = [
+            b.id
+            for b in self.bullets.values()
+            if (b.helpful + b.harmful) >= 3 and b.utility < 0.4
+        ]
+        for bid in to_prune:
+            del self.bullets[bid]
+            log.append(f"PRUNE {bid} (low utility)")
+        # 2. Semantic dedupe across same section
+        by_section: Dict[str, List[Bullet]] = {}
+        for b in self.bullets.values():
+            by_section.setdefault(b.section, []).append(b)
+        for bullets in by_section.values():
+            kept: List[Bullet] = []
+            for b in sorted(bullets, key=lambda x: (-x.helpful, x.id)):
+                if any(
+                    _cosine(_tokens(b.content), _tokens(k.content)) > 0.85 for k in kept
+                ):
+                    del self.bullets[b.id]
+                    log.append(f"DEDUP {b.id}")
+                else:
+                    kept.append(b)
+        return log
+
+    # --- Serialization ----------------------------------------------------
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "name": self.name,
+            "bullets": {k: asdict(v) for k, v in self.bullets.items()},
+            "counters": dict(self._counters),
+        }
+
+    def to_json(self) -> str:
+        return json.dumps(self.to_dict(), indent=2)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Playbook":
+        pb = cls(data["name"])
+        pb._counters = dict(data.get("counters", {}))
+        for k, v in data.get("bullets", {}).items():
+            pb.bullets[k] = Bullet(**v)
+        return pb
+
+
+# --- Reflector & Curator --------------------------------------------------
+
+
+class Reflector:
+    """Extracts insights from a reasoning trace + execution signals.
+
+    Not an LLM — applies a pattern ruleset over the trace. In production you'd
+    swap ``reflect`` for an LLM call; the interface is identical.
+    """
+
+    def reflect(
+        self,
+        *,
+        trajectory_summary: str,
+        outcome: str,  # "success" | "failure" | "partial"
+        current_playbook: Playbook,
+        grounding_issues: Optional[List[str]] = None,
+    ) -> Reflection:
+        insight_parts = []
+        correct = ""
+        tags: List[Dict[str, str]] = []
+
+        if outcome == "failure":
+            insight_parts.append(
+                "A downstream agent could not act on this trajectory; the reasoning "
+                "likely skipped a grounding or assumption check."
+            )
+            correct = (
+                "Before committing to a recommendation, restate the binding constraint "
+                "and verify it against the shared entity map."
+            )
+        elif outcome == "partial":
+            insight_parts.append(
+                "Output was usable but incomplete — expansion converged too quickly."
+            )
+            correct = (
+                "Increase expansion steps or add a cross-domain analogy before compressing."
+            )
+        else:
+            insight_parts.append(
+                "Trajectory met the downstream need; note the reusable pattern."
+            )
+            correct = "Continue applying the same expansion cadence for similar problems."
+
+        if grounding_issues:
+            insight_parts.append(
+                "Grounding checks surfaced "
+                + str(len(grounding_issues))
+                + " unsourced claim(s)."
+            )
+            correct += " Always cite the shared ContextEngine entry when using a factual claim."
+
+        # Tag bullets that appeared in the trajectory as helpful
+        for bid, bullet in current_playbook.bullets.items():
+            token_b = _tokens(bullet.content)
+            token_traj = _tokens(trajectory_summary)
+            if _cosine(token_b, token_traj) > 0.25:
+                tags.append(
+                    {"id": bid, "tag": "helpful" if outcome != "failure" else "harmful"}
+                )
+
+        return Reflection(
+            reasoning=" ".join(insight_parts),
+            key_insight=correct.split(".")[0] + ".",
+            correct_approach=correct,
+            bullet_tags=tags,
+        )
+
+
+class Curator:
+    """Transforms reflections into playbook DeltaOps — never full rewrites."""
+
+    def curate(
+        self,
+        reflection: Reflection,
+        playbook: Playbook,
+        *,
+        default_section: str = "strategies_and_hard_rules",
+    ) -> List[DeltaOp]:
+        ops: List[DeltaOp] = []
+        # 1. Tag existing bullets
+        for tag in reflection.bullet_tags:
+            ops.append(
+                DeltaOp(
+                    type="INCREMENT",
+                    target_id=tag["id"],
+                    tag=tag["tag"],
+                    rationale="reflector feedback",
+                )
+            )
+        # 2. Add the new insight as a rule if not already present
+        if reflection.correct_approach:
+            ops.append(
+                DeltaOp(
+                    type="ADD",
+                    section=default_section,
+                    content=reflection.correct_approach.strip(),
+                    rationale=reflection.key_insight,
+                )
+            )
+        return ops
+
+===== ***REDACTED_PATH***/convergence-cfo-ref/src/cme/orchestrator.py =====
+"""EnterpriseOrchestrator — coordinates MeshAgents on a shared context.
+
+The orchestrator:
+
+    1. Accepts a problem from a human user
+    2. Selects and sequences agents whose capabilities match the problem
+    3. Runs each agent under the Cognitive Mesh Protocol
+    4. Routes structured outputs through the ContextEngine
+    5. Passes the collected agent outputs into the BridgeFramework to produce
+       a final Statement + executable Workflow
+"""
+from __future__ import annotations
+
+import time
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
+
+from cme.agent import MeshAgent, TurnResult
+from cme.bridge import (
+    BridgeFramework,
+    Consequences,
+    EntryPoint,
+    Workflow,
+    WhyLink,
+)
+from cme.context import ContextEngine
+
+
+@dataclass
+class OrchestrationReport:
+    problem: str
+    turns: List[TurnResult]
+    workflow: Workflow
+    duration_ms: int
+    context_snapshot: Dict[str, Any] = field(default_factory=dict)
+
+    def render(self) -> str:
+        sections = [
+            f"# Orchestration Report",
+            f"**Problem:** {self.problem}",
+            f"**Agents:** {', '.join(t.agent for t in self.turns)}",
+            f"**Duration:** {self.duration_ms}ms",
+            "",
+            "---",
+            "",
+        ]
+        for t in self.turns:
+            sections.append(f"## Agent Turn — {t.agent}")
+            sections.append(t.trace.render())
+            if t.deltas_applied:
+                sections.append("")
+                sections.append("### Playbook Deltas")
+                for d in t.deltas_applied:
+                    sections.append(f"  - {d}")
+            if t.handoff_notes:
+                sections.append("")
+                sections.append("### Handoff Notes")
+                for n in t.handoff_notes:
+                    sections.append(f"  - {n}")
+            sections.append("")
+            sections.append("---")
+            sections.append("")
+        sections.append(self.workflow.render())
+        return "\n".join(sections)
+
+
+class EnterpriseOrchestrator:
+    def __init__(
+        self,
+        *,
+        agents: List[MeshAgent],
+        context: Optional[ContextEngine] = None,
+        bridge: Optional[BridgeFramework] = None,
+    ) -> None:
+        self.agents = {a.name: a for a in agents}
+        self.context = context or ContextEngine()
+        self.bridge = bridge or BridgeFramework()
+
+    # --- Sequencing ------------------------------------------------------
+
+    def _sequence(self, required_outputs: List[str]) -> List[MeshAgent]:
+        """Topologically sort agents so producers run before consumers."""
+        producers: Dict[str, MeshAgent] = {}
+        for agent in self.agents.values():
+            for out in agent.capability.produces:
+                producers.setdefault(out, agent)
+
+        ordered: List[MeshAgent] = []
+        visited: set = set()
+
+        def visit(agent: MeshAgent) -> None:
+            if agent.name in visited:
+                return
+            visited.add(agent.name)
+            for inp in agent.capability.consumes:
+                producer = producers.get(inp)
+                if producer and producer.name != agent.name:
+                    visit(producer)
+            ordered.append(agent)
+
+        target_agents = [a for a in self.agents.values() if not required_outputs or any(
+            out in required_outputs for out in a.capability.produces
+        )]
+        if not target_agents:
+            target_agents = list(self.agents.values())
+
+        for a in target_agents:
+            visit(a)
+
+        return ordered
+
+    # --- Main driver -----------------------------------------------------
+
+    def orchestrate(
+        self,
+        problem: str,
+        *,
+        entry_point: EntryPoint = EntryPoint.PROBLEM,
+        required_outputs: Optional[List[str]] = None,
+        workflow_title: Optional[str] = None,
+    ) -> OrchestrationReport:
+        start = time.time()
+        self.context.record_event(actor="orchestrator", action="intake", object_=problem)
+
+        ordered = self._sequence(required_outputs or [])
+        turns: List[TurnResult] = []
+        agent_outputs_for_bridge: List[Dict[str, Any]] = []
+
+        for agent in ordered:
+            result = agent.act(problem, shared_context=self.context)
+            turns.append(result)
+            agent_outputs_for_bridge.append(
+                {
+                    "agent": agent.name,
+                    "title": result.trace.recommendation[:80],
+                    "recommendation": result.trace.recommendation,
+                    "rationale": f"{agent.capability.domain} reasoning "
+                    f"(confidence={result.trace.confidence.value})",
+                    "inputs": agent.capability.consumes,
+                    "outputs": agent.capability.produces,
+                }
+            )
+
+        # --- Build statement from the collected turns ----------------------
+        statement = self._synthesize_statement(
+            problem=problem, entry_point=entry_point, turns=turns
+        )
+        workflow = self.bridge.build_workflow(
+            title=workflow_title or f"Response to: {problem[:60]}",
+            statement=statement,
+            agent_outputs=agent_outputs_for_bridge,
+        )
+
+        duration_ms = int((time.time() - start) * 1000)
+        return OrchestrationReport(
+            problem=problem,
+            turns=turns,
+            workflow=workflow,
+            duration_ms=duration_ms,
+            context_snapshot=self.context.dump(),
+        )
+
+    # --- Statement synthesis --------------------------------------------
+
+    def _synthesize_statement(
+        self, *, problem: str, entry_point: EntryPoint, turns: List[TurnResult]
+    ):
+        # Observable tension = the problem itself restated
+        observable = (
+            f"Today: {problem} — {len(turns)} specialist agent(s) produced recommendations "
+            f"through {sum(len(t.trace.expansion) for t in turns)} expansion steps."
+        )
+
+        # 5 Whys — derived from each agent's top expansion step (first {n} agents)
+        whys: List[WhyLink] = []
+        for t in turns[:5]:
+            if not t.trace.expansion:
+                continue
+            first = t.trace.expansion[0]
+            whys.append(
+                WhyLink(
+                    question=f"Why does {t.agent} see this matter?",
+                    answer=f"{first.label}: {first.content}",
+                )
+            )
+        while len(whys) < 3:  # ensure minimum depth per spec
+            whys.append(
+                WhyLink(
+                    question="Why is this still unresolved?",
+                    answer="Because the binding constraint has not been named in shared context.",
+                )
+            )
+
+        # Consequences — pull highest-confidence agent's recommendation as financial impact
+        hi_conf = sorted(
+            turns, key=lambda t: {"high": 3, "medium": 2, "low": 1}[t.trace.confidence.value], reverse=True
+        )
+        financial = (
+            hi_conf[0].trace.recommendation
+            if hi_conf
+            else "Impact not yet quantified."
+        )
+        consequences = Consequences(
+            strategic="Mesh loses coherence; agents optimize locally without shared context.",
+            cultural="Teams re-solve the same problems in parallel, eroding trust in the system.",
+            financial=financial[:200],
+            timeline="2 quarters",
+        )
+
+        strategic_connection = (
+            "This connects to the organization's mission of shipping decisions that are "
+            "both technically rigorous and human-auditable. Every multi-agent output must "
+            "trace back to an observable organizational signal."
+        )
+
+        return self.bridge.build_statement(
+            entry_point=entry_point,
+            observable_tension=observable,
+            whys=whys,
+            consequences=consequences,
+            strategic_connection=strategic_connection,
+        )
+
+===== ***REDACTED_PATH***/convergence-cfo-ref/src/cme/bridge.py =====
+"""Bridge Framework.
+
+Translates complex multi-agent outputs into (a) a vivid strategic Statement
+and (b) an executable Workflow of concrete steps.
+
+Implements the spec's 5-phase flow: entry point, observable tension, 5 Whys,
+consequences, and strategic connection. Here the user turns the methodology
+into a builder API the orchestrator can call programmatically.
+"""
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Dict, List, Optional
+
+
+class EntryPoint(str, Enum):
+    PROBLEM = "problem"
+    OPPORTUNITY = "opportunity"
+    SITUATION = "situation"
+
+
+@dataclass
+class WhyLink:
+    question: str
+    answer: str
+
+
+@dataclass
+class Consequences:
+    strategic: str
+    cultural: str
+    financial: str
+    timeline: str = "6 months"
+
+
+@dataclass
+class Statement:
+    entry_point: EntryPoint
+    observable_tension: str
+    whys: List[WhyLink]
+    root_cause: str
+    consequences: Consequences
+    strategic_connection: str
+
+    def render(self) -> str:
+        lines = [
+            f"## {self.entry_point.value.title()} Statement",
+            "",
+            "### Observable Tension",
+            self.observable_tension,
+            "",
+            "### 5 Whys",
+        ]
+        for i, w in enumerate(self.whys, 1):
+            lines.append(f"{i}. **{w.question}** → {w.answer}")
+        lines.extend(
+            [
+                "",
+                "### Root Cause",
+                self.root_cause,
+                "",
+                f"### Consequences if Unaddressed ({self.consequences.timeline})",
+                f"- **Strategic:** {self.consequences.strategic}",
+                f"- **Cultural:** {self.consequences.cultural}",
+                f"- **Financial:** {self.consequences.financial}",
+                "",
+                "### Strategic Connection",
+                self.strategic_connection,
+            ]
+        )
+        return "\n".join(lines)
+
+    def completeness_report(self) -> Dict[str, bool]:
+        """Apply the spec's completeness checklist."""
+        return {
+            "initiating_moment_specific": bool(self.observable_tension)
+            and len(self.observable_tension) > 20,
+            "root_cause_structural": len(self.whys) >= 3
+            and bool(self.root_cause),
+            "consequences_visible": all(
+                (
+                    self.consequences.strategic,
+                    self.consequences.cultural,
+                    self.consequences.financial,
+                )
+            ),
+            "strategic_link": len(self.strategic_connection) > 15,
+            "vivid_language": any(
+                w in self.observable_tension.lower()
+                for w in ("each", "every", "already", "now", "today")
+            )
+            or "$" in self.observable_tension,
+        }
+
+
+@dataclass
+class WorkflowStep:
+    id: str
+    title: str
+    owner: str  # agent name or role
+    inputs: List[str] = field(default_factory=list)
+    outputs: List[str] = field(default_factory=list)
+    depends_on: List[str] = field(default_factory=list)
+    rationale: str = ""
+
+    def render(self) -> str:
+        deps = f" (after {', '.join(self.depends_on)})" if self.depends_on else ""
+        return (
+            f"- **{self.id}** [{self.owner}] {self.title}{deps}\n"
+            f"    inputs: {self.inputs or '—'}\n"
+            f"    outputs: {self.outputs or '—'}\n"
+            f"    rationale: {self.rationale}"
+        )
+
+
+@dataclass
+class Workflow:
+    title: str
+    statement: Statement
+    steps: List[WorkflowStep]
+
+    def render(self) -> str:
+        lines = [f"# Workflow: {self.title}", "", self.statement.render(), ""]
+        lines.append("## Executable Steps")
+        for step in self.steps:
+            lines.append(step.render())
+        return "\n".join(lines)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "title": self.title,
+            "statement": {
+                "entry_point": self.statement.entry_point.value,
+                "observable_tension": self.statement.observable_tension,
+                "whys": [{"q": w.question, "a": w.answer} for w in self.statement.whys],
+                "root_cause": self.statement.root_cause,
+                "consequences": {
+                    "strategic": self.statement.consequences.strategic,
+                    "cultural": self.statement.consequences.cultural,
+                    "financial": self.statement.consequences.financial,
+                    "timeline": self.statement.consequences.timeline,
+                },
+                "strategic_connection": self.statement.strategic_connection,
+            },
+            "steps": [
+                {
+                    "id": s.id,
+                    "title": s.title,
+                    "owner": s.owner,
+                    "inputs": s.inputs,
+                    "outputs": s.outputs,
+                    "depends_on": s.depends_on,
+                    "rationale": s.rationale,
+                }
+                for s in self.steps
+            ],
+        }
+
+    def to_json(self) -> str:
+        return json.dumps(self.to_dict(), indent=2)
+
+
+class BridgeFramework:
+    """Builder that turns mesh outputs into statements and workflows.
+
+    The orchestrator supplies raw insights (one per contributing agent); the
+    framework applies the 5-phase methodology to produce a coherent artifact.
+    """
+
+    def build_statement(
+        self,
+        *,
+        entry_point: EntryPoint,
+        observable_tension: str,
+        whys: List[WhyLink],
+        consequences: Consequences,
+        strategic_connection: str,
+    ) -> Statement:
+        root_cause = (
+            whys[-1].answer
+            if whys
+            else "Root cause not yet explored — run the 5 Whys again."
+        )
+        return Statement(
+            entry_point=entry_point,
+            observable_tension=observable_tension,
+            whys=whys,
+            root_cause=root_cause,
+            consequences=consequences,
+            strategic_connection=strategic_connection,
+        )
+
+    def build_workflow(
+        self,
+        *,
+        title: str,
+        statement: Statement,
+        agent_outputs: List[Dict[str, Any]],
+    ) -> Workflow:
+        """Translate a list of ``{agent, recommendation, inputs, outputs}`` dicts
+        into sequenced WorkflowSteps with dependency inference."""
+        steps: List[WorkflowStep] = []
+        produced: Dict[str, str] = {}  # output name -> step id
+        for i, out in enumerate(agent_outputs, 1):
+            sid = f"S{i:02d}"
+            inputs = list(out.get("inputs", []))
+            outputs = list(out.get("outputs", []))
+            depends = sorted({produced[inp] for inp in inputs if inp in produced})
+            steps.append(
+                WorkflowStep(
+                    id=sid,
+                    title=out.get("title", out.get("recommendation", "step")),
+                    owner=out["agent"],
+                    inputs=inputs,
+                    outputs=outputs,
+                    depends_on=depends,
+                    rationale=out.get("rationale", ""),
+                )
+            )
+            for o in outputs:
+                produced[o] = sid
+        return Workflow(title=title, statement=statement, steps=steps)
+
+===== ***REDACTED_PATH***/convergence-cfo-ref/src/cme/__init__.py =====
+"""Multi-Agent CFO Operating System.
+
+A CHP-hardened, shared-context platform where Finance, Strategy, and Compliance
+agents collaborate on forecasts, investment cases, and board outputs with a
+single auditable reasoning trail.
+
+Composes four well-specified subsystems:
+    - CognitiveMeshProtocol  (expansion/compression reasoning cycles)
+    - ContextEngine          (layered memory + entity/event/task schema)
+    - Playbook               (ACE evolving playbooks with delta updates)
+    - Consensus Hardening Protocol (foundation hardening + lock progression)
+"""
+
+from cme.protocol import CognitiveMeshProtocol, ReasoningTrace, ProblemType
+from cme.context import ContextEngine, Entity, Event, Task
+from cme.playbook import Playbook, Bullet, Reflector, Curator
+from cme.bridge import BridgeFramework, Workflow, Statement
+from cme.agent import MeshAgent, AgentCapability
+from cme.orchestrator import EnterpriseOrchestrator
+from cme.chp import CHPOrchestrator, DecisionCase, Dossier
+from cme.cfo_os import (
+    BoardBrief,
+    CFOOperatingSystem,
+    CFOTaskType,
+    ForecastBrief,
+    InvestmentBrief,
+)
+
+__version__ = "0.1.0"
+
+__all__ = [
+    "CognitiveMeshProtocol",
+    "ReasoningTrace",
+    "ProblemType",
+    "ContextEngine",
+    "Entity",
+    "Event",
+    "Task",
+    "Playbook",
+    "Bullet",
+    "Reflector",
+    "Curator",
+    "BridgeFramework",
+    "Workflow",
+    "Statement",
+    "MeshAgent",
+    "AgentCapability",
+    "EnterpriseOrchestrator",
+    "CHPOrchestrator",
+    "DecisionCase",
+    "Dossier",
+    "BoardBrief",
+    "CFOOperatingSystem",
+    "CFOTaskType",
+    "ForecastBrief",
+    "InvestmentBrief",
+]
+
+===== ***REDACTED_PATH***/convergence-cfo-ref/src/cme/cfo_os/briefs.py =====
+"""Structured CFO task briefs — the input to a CFO OS session."""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import List, Optional
+
+
+class CFOTaskType(str, Enum):
+    FORECAST = "forecast"
+    INVESTMENT_CASE = "investment_case"
+    BOARD_OUTPUT = "board_output"
+
+
+@dataclass
+class CFOBrief:
+    """Common fields for any CFO task."""
+
+    title: str
+    company: str
+    problem: str
+    horizon: str = "FY"
+    owner: str = "cfo"
+    high_stakes: bool = True
+    origin_system: str = "Claude"
+    origin_model: str = "GPT-5.4"
+    partner_system: str = "Partner"
+    partner_model: str = "GPT-5-equivalent"
+    decision_id: Optional[str] = None
+    strategic_priorities: List[str] = field(default_factory=list)
+    constraints: List[str] = field(default_factory=list)
+
+
+@dataclass
+class ForecastBrief(CFOBrief):
+    """Driver-based forecast task."""
+
+    task_type: CFOTaskType = CFOTaskType.FORECAST
+    revenue_drivers: List[str] = field(
+        default_factory=lambda: ["new logo ARR", "expansion ARR", "churn"]
+    )
+    cost_drivers: List[str] = field(
+        default_factory=lambda: ["headcount", "infra", "go-to-market"]
+    )
+    base_revenue_usd: float = 0.0
+    base_opex_usd: float = 0.0
+    growth_assumption_pct: float = 0.20
+    churn_assumption_pct: float = 0.08
+    minimum_runway_months: int = 12
+    current_runway_months: int = 18
+
+
+@dataclass
+class InvestmentBrief(CFOBrief):
+    """Capital allocation / investment case task."""
+
+    task_type: CFOTaskType = CFOTaskType.INVESTMENT_CASE
+    investment_amount_usd: float = 0.0
+    expected_payback_months: int = 18
+    minimum_runway_months: int = 12
+    current_runway_months: int = 18
+    expected_upside: List[str] = field(default_factory=list)
+    key_risks: List[str] = field(default_factory=list)
+
+
+@dataclass
+class BoardBrief(CFOBrief):
+    """Board decision task — multi-option recommendation for the board."""
+
+    task_type: CFOTaskType = CFOTaskType.BOARD_OUTPUT
+    options: List[str] = field(default_factory=list)
+    recommended_option_index: int = 0
+    open_questions: List[str] = field(default_factory=list)
+    prior_board_decisions: List[str] = field(default_factory=list)
+    strategic_risks: List[str] = field(default_factory=list)
+
+===== ***REDACTED_PATH***/convergence-cfo-ref/src/cme/cfo_os/dossier_builders.py =====
+"""Brief -> CHP DecisionCase + FoundationDisclosure + FoundationAttack.
+
+Each CFO task type lands the inputs into the canonical CHP shape so the same
+hardening pipeline runs on forecasts, investment cases, and board outputs.
+"""
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from typing import Tuple
+
+from cme.chp.models import DecisionCase, Dossier, FoundationAttack, FoundationDisclosure
+from cme.cfo_os.briefs import (
+    BoardBrief,
+    CFOBrief,
+    CFOTaskType,
+    ForecastBrief,
+    InvestmentBrief,
+)
+
+
+def build_decision_case(
+    brief: CFOBrief,
+) -> Tuple[DecisionCase, FoundationDisclosure, FoundationAttack]:
+    if isinstance(brief, ForecastBrief):
+        return _build_forecast_case(brief)
+    if isinstance(brief, InvestmentBrief):
+        return _build_investment_case(brief)
+    if isinstance(brief, BoardBrief):
+        return _build_board_case(brief)
+    raise TypeError(f"Unsupported brief type: {type(brief).__name__}")
+
+
+def _decision_id(prefix: str, title: str) -> str:
+    seed = "".join(ch.lower() if ch.isalnum() else "-" for ch in title).strip("-")
+    return f"{prefix}-{seed[:32]}"
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _domain_for(task: CFOTaskType) -> str:
+    return {
+        CFOTaskType.FORECAST: "forecast",
+        CFOTaskType.INVESTMENT_CASE: "capital_allocation",
+        CFOTaskType.BOARD_OUTPUT: "board_decision",
+    }[task]
+
+
+def _build_forecast_case(
+    brief: ForecastBrief,
+) -> Tuple[DecisionCase, FoundationDisclosure, FoundationAttack]:
+    decision_id = brief.decision_id or _decision_id("fc", brief.title)
+    growth_pct = int(round(brief.growth_assumption_pct * 100))
+    churn_pct = int(round(brief.churn_assumption_pct * 100))
+    dossier = Dossier(
+        core_problem=brief.problem,
+        goal_state=[
+            f"Forecast horizon: {brief.horizon}",
+            f"Runway stays >= {brief.minimum_runway_months} months at central case",
+        ]
+        + brief.strategic_priorities[:2],
+        current_state=[
+            f"Base revenue: ${brief.base_revenue_usd:,.0f}",
+            f"Base opex: ${brief.base_opex_usd:,.0f}",
+            f"Current runway: {brief.current_runway_months} months",
+        ],
+        prior_decisions=[],
+        constraints=[
+            f"Runway floor: {brief.minimum_runway_months} months",
+            "Drivers must be auditable to source data",
+        ]
+        + brief.constraints,
+        unknowns=[
+            "Macro demand softness",
+            "Hiring ramp slope",
+        ],
+        scope=[
+            "Driver model",
+            "Stress views",
+            "Locked plan package",
+        ],
+        origin_direction=[
+            "Prefer driver-based projection over top-down growth",
+            "Require explicit assumption registry",
+        ],
+        structural_vulnerabilities=[
+            "Growth and churn assumptions may compound errors",
+            "Cost drivers may lag revenue without explicit lock points",
+        ],
+    )
+    case = DecisionCase(
+        decision_id=decision_id,
+        title=brief.title,
+        domain=_domain_for(brief.task_type),
+        created_at=_now(),
+        owner=brief.owner,
+        high_stakes=brief.high_stakes,
+        origin_system=brief.origin_system,
+        origin_model=brief.origin_model,
+        partner_system=brief.partner_system,
+        partner_model=brief.partner_model,
+        dossier=dossier,
+    )
+    disclosure = FoundationDisclosure(
+        weakest_assumptions=[
+            f"Growth assumption of {growth_pct}% holds across the horizon",
+            f"Churn assumption of {churn_pct}% does not deteriorate",
+            "Cost drivers scale linearly with revenue",
+        ],
+        invalidation_conditions=[
+            "Growth slips by more than one planning cycle",
+            "Churn rises 2 percentage points above plan",
+        ],
+        key_vulnerability=(
+            "The forecast hinges on driver assumptions that look disciplined but "
+            "are not yet evidenced by recent actuals."
+        ),
+    )
+    score = _forecast_foundation_score(brief)
+    attack = FoundationAttack(
+        assumption_attacks=[
+            "Growth may be optimistic relative to recent pipeline conversion.",
+            "Churn may already be drifting upward in cohorts not yet in the model.",
+            "Cost driver linearity ignores step-function hiring at scale.",
+        ],
+        invalidation_exploitation=[
+            "If growth slips 1 cycle and churn rises, runway can break the floor.",
+            "If hiring steps before revenue lands, opex compounds the miss.",
+        ],
+        vulnerability_strike=(
+            "Forecast credibility depends on grounding driver assumptions in "
+            "recent actuals — not policy aspiration."
+        ),
+        foundation_score=score,
+        attack_summary=(
+            "Forecast is directionally credible if the assumption registry is "
+            "evidenced and stress views are explicit."
+        ),
+    )
+    dossier.foundation_score = score
+    return case, disclosure, attack
+
+
+def _build_investment_case(
+    brief: InvestmentBrief,
+) -> Tuple[DecisionCase, FoundationDisclosure, FoundationAttack]:
+    decision_id = brief.decision_id or _decision_id("inv", brief.title)
+    dossier = Dossier(
+        core_problem=brief.problem,
+        goal_state=[
+            f"Payback <= {brief.expected_payback_months} months",
+            f"Runway stays >= {brief.minimum_runway_months} months",
+        ]
+        + brief.expected_upside[:2],
+        current_state=[
+            f"Current runway: {brief.current_runway_months} months",
+            f"Proposed investment: ${brief.investment_amount_usd:,.0f}",
+        ],
+        prior_decisions=[],
+        constraints=[
+            f"Do not reduce runway below {brief.minimum_runway_months} months",
+            "Single accountable owner required",
+        ]
+        + brief.constraints,
+        unknowns=[
+            "Adoption and conversion timing",
+            "Implementation execution capacity",
+        ],
+        scope=[
+            "Foundation attack",
+            "Spec lock",
+            "Implementation QA",
+        ],
+        origin_direction=[
+            "Prefer milestone-gated capital release",
+            "Require explicit flip criteria before full commitment",
+        ],
+        structural_vulnerabilities=[
+            "Revenue timing may lag implementation spend",
+            "Strategic upside may be overstated relative to execution capacity",
+        ],
+    )
+    case = DecisionCase(
+        decision_id=decision_id,
+        title=brief.title,
+        domain=_domain_for(brief.task_type),
+        created_at=_now(),
+        owner=brief.owner,
+        high_stakes=brief.high_stakes,
+        origin_system=brief.origin_system,
+        origin_model=brief.origin_model,
+        partner_system=brief.partner_system,
+        partner_model=brief.partner_model,
+        dossier=dossier,
+    )
+    disclosure = FoundationDisclosure(
+        weakest_assumptions=[
+            f"Payback within {brief.expected_payback_months} months is achievable",
+            "Strategic upside is material in this capital window",
+            "Org can absorb implementation without harming core execution",
+        ],
+        invalidation_conditions=[
+            f"Runway breaks {brief.minimum_runway_months}-month floor under downside",
+            "Adoption slips by more than one planning cycle",
+        ],
+        key_vulnerability=(
+            "The case depends on timing assumptions that look disciplined in "
+            "theory but fail in operating reality."
+        ),
+    )
+    score = _investment_foundation_score(brief)
+    attack = FoundationAttack(
+        assumption_attacks=[
+            "Payback may rest on optimistic adoption rather than contracted demand.",
+            "Strategic upside may be real but not near-term enough.",
+            "Execution load may crowd out current priorities.",
+        ],
+        invalidation_exploitation=[
+            "If spend lands before benefits, runway floor breaks fast.",
+            "One-cycle adoption slip pushes economics outside hurdle tolerance.",
+        ],
+        vulnerability_strike=(
+            "Most exposed where timing, not direction, carries the case."
+        ),
+        foundation_score=score,
+        attack_summary=(
+            "Directionally credible but timing-sensitive. Proceed only with "
+            "milestone-gated release and explicit downside triggers."
+        ),
+    )
+    dossier.foundation_score = score
+    return case, disclosure, attack
+
+
+def _build_board_case(
+    brief: BoardBrief,
+) -> Tuple[DecisionCase, FoundationDisclosure, FoundationAttack]:
+    decision_id = brief.decision_id or _decision_id("brd", brief.title)
+    options = brief.options or ["Approve", "Defer", "Reject"]
+    rec_idx = max(0, min(brief.recommended_option_index, len(options) - 1))
+    dossier = Dossier(
+        core_problem=brief.problem,
+        goal_state=[
+            "Board receives a single decision statement with explicit options",
+            "Recommendation has flip criteria and a named owner",
+        ]
+        + brief.strategic_priorities[:2],
+        current_state=[
+            f"Options on the table: {len(options)}",
+            f"Recommended: '{options[rec_idx]}'",
+        ],
+        prior_decisions=brief.prior_board_decisions,
+        constraints=[
+            "Decision must be lockable and replayable",
+            "All open questions must be named, not buried",
+        ]
+        + brief.constraints,
+        unknowns=brief.open_questions or [
+            "Stakeholder alignment beyond exec",
+            "Downstream policy implications",
+        ],
+        scope=[
+            "Foundation attack on framing",
+            "Spec lock on the decision",
+            "Implementation ask + decision log",
+        ],
+        origin_direction=[
+            "Prefer locking a clearly worded decision over hedged prose",
+            "Surface dissent before vote, not after",
+        ],
+        structural_vulnerabilities=[
+            "Framing may compress real disagreement",
+            "Recommended option may dominate by inertia, not analysis",
+        ],
+    )
+    case = DecisionCase(
+        decision_id=decision_id,
+        title=brief.title,
+        domain=_domain_for(brief.task_type),
+        created_at=_now(),
+        owner=brief.owner,
+        high_stakes=True,
+        origin_system=brief.origin_system,
+        origin_model=brief.origin_model,
+        partner_system=brief.partner_system,
+        partner_model=brief.partner_model,
+        dossier=dossier,
+    )
+    disclosure = FoundationDisclosure(
+        weakest_assumptions=[
+            "The framing captures the actual decision the board needs to make",
+            "The option set is exhaustive enough for a real choice",
+            "Dissent will surface before the vote, not after",
+        ],
+        invalidation_conditions=[
+            "A material option is missing from the slate",
+            "Framing collapses two distinct decisions into one",
+        ],
+        key_vulnerability=(
+            "Board decisions often fail on framing, not on the chosen option."
+        ),
+    )
+    score = _board_foundation_score(brief, options)
+    attack = FoundationAttack(
+        assumption_attacks=[
+            "Framing may have been optimized for consensus, not clarity.",
+            "Option set may exclude a credible alternative the board would name.",
+            "Dissent may exist but is unmeasured in the prep packet.",
+        ],
+        invalidation_exploitation=[
+            "If framing is wrong, even a good vote locks the wrong decision.",
+            "If dissent is unsurfaced, the lock is brittle and reopenable.",
+        ],
+        vulnerability_strike=(
+            "Board hardening depends on naming, not deciding."
+        ),
+        foundation_score=score,
+        attack_summary=(
+            "Decision is lockable if framing survives adversarial review and "
+            "the option slate is genuinely exhaustive."
+        ),
+    )
+    dossier.foundation_score = score
+    return case, disclosure, attack
+
+
+def _forecast_foundation_score(brief: ForecastBrief) -> int:
+    score = 78
+    if brief.current_runway_months < brief.minimum_runway_months + 3:
+        score -= 10
+    if brief.growth_assumption_pct > 0.40:
+        score -= 6
+    if brief.churn_assumption_pct > 0.12:
+        score -= 5
+    if not brief.revenue_drivers:
+        score -= 6
+    return max(55, min(92, score))
+
+
+def _investment_foundation_score(brief: InvestmentBrief) -> int:
+    score = 78
+    if brief.current_runway_months < brief.minimum_runway_months + 3:
+        score -= 10
+    if brief.expected_payback_months > 18:
+        score -= 8
+    if len(brief.key_risks) >= 4:
+        score -= 4
+    if brief.investment_amount_usd >= 5_000_000:
+        score -= 3
+    return max(55, min(92, score))
+
+
+def _board_foundation_score(brief: BoardBrief, options: list[str]) -> int:
+    score = 76
+    if len(options) < 3:
+        score -= 8
+    if not brief.open_questions:
+        score -= 4
+    if not brief.strategic_risks:
+        score -= 4
+    if brief.recommended_option_index < 0 or brief.recommended_option_index >= len(options):
+        score -= 6
+    return max(55, min(92, score))
+
+===== ***REDACTED_PATH***/convergence-cfo-ref/src/cme/cfo_os/artifacts.py =====
+"""CFO-grade artifact templates produced by a CFO OS session.
+
+A single multi-agent run lands one of three artifact shapes:
+
+    - ForecastPack       (driver-level forecast with stress views and lock state)
+    - InvestmentCaseMemo (capital allocation memo with ROI + risks + flip criteria)
+    - BoardOutput        (decision packet for the board with options + dissent)
+
+All artifacts share the ``CFOArtifact`` interface: ``render() -> str`` markdown,
+plus structural fields the audit trail can index.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any, Dict, List
+
+from cme.agent import TurnResult
+from cme.chp.models import DecisionCase, SessionStatus
+from cme.cfo_os.briefs import BoardBrief, ForecastBrief, InvestmentBrief
+
+
+@dataclass
+class CFOArtifact:
+    title: str
+    decision_id: str
+    lock_state: str
+    sections: List[Dict[str, Any]] = field(default_factory=list)
+
+    def render(self) -> str:
+        lines = [
+            f"# {self.title}",
+            f"_decision_id: `{self.decision_id}`  ·  lock_state: **{self.lock_state}**_",
+            "",
+        ]
+        for s in self.sections:
+            lines.append(f"## {s['heading']}")
+            for item in s.get("bullets", []):
+                lines.append(f"- {item}")
+            if s.get("body"):
+                lines.append("")
+                lines.append(s["body"])
+            lines.append("")
+        return "\n".join(lines).rstrip() + "\n"
+
+
+@dataclass
+class ForecastPack(CFOArtifact):
+    pass
+
+
+@dataclass
+class InvestmentCaseMemo(CFOArtifact):
+    pass
+
+
+@dataclass
+class BoardOutput(CFOArtifact):
+    pass
+
+
+# --- Builders ---------------------------------------------------------------
+
+
+def _by_agent(turns: List[TurnResult]) -> Dict[str, TurnResult]:
+    return {t.agent: t for t in turns}
+
+
+def _lock_state(case: DecisionCase) -> str:
+    return case.status.value if isinstance(case.status, SessionStatus) else str(case.status)
+
+
+def build_forecast_pack(
+    *,
+    brief: ForecastBrief,
+    case: DecisionCase,
+    turns: List[TurnResult],
+) -> ForecastPack:
+    by_agent = _by_agent(turns)
+    finance = by_agent.get("finance")
+    strategy = by_agent.get("strategy")
+    compliance = by_agent.get("compliance")
+
+    drivers_section = {
+        "heading": "Driver Registry",
+        "bullets": [f"Revenue driver: {d}" for d in brief.revenue_drivers]
+        + [f"Cost driver: {d}" for d in brief.cost_drivers],
+    }
+    base_section = {
+        "heading": "Baseline Inputs",
+        "bullets": [
+            f"Base revenue: ${brief.base_revenue_usd:,.0f}",
+            f"Base opex: ${brief.base_opex_usd:,.0f}",
+            f"Growth assumption: {brief.growth_assumption_pct * 100:.1f}%",
+            f"Churn assumption: {brief.churn_assumption_pct * 100:.1f}%",
+            f"Current runway: {brief.current_runway_months} months "
+            f"(floor: {brief.minimum_runway_months})",
+        ],
+    }
+    finance_view = {
+        "heading": "Finance View",
+        "bullets": _agent_bullets(finance),
+    }
+    strategy_view = {
+        "heading": "Strategy View",
+        "bullets": _agent_bullets(strategy),
+    }
+    compliance_view = {
+        "heading": "Compliance View",
+        "bullets": _agent_bullets(compliance),
+    }
+    stress_section = {
+        "heading": "Stress Views",
+        "bullets": [
+            f"Downside: growth -{int(brief.growth_assumption_pct * 100 / 2)}%, "
+            f"churn +200bps -> tests runway floor",
+            "Central: as-stated assumptions hold across the horizon",
+            f"Upside: growth +{int(brief.growth_assumption_pct * 100 / 2)}%, churn flat -> "
+            "tests cost-driver step functions",
+        ],
+    }
+    lock_section = {
+        "heading": "Plan Lock Status",
+        "bullets": [
+            f"Foundation score: {case.foundation_score}",
+            f"Status: {_lock_state(case)}",
+            "Locked items advance only after third-party validation (CHP).",
+        ],
+    }
+
+    return ForecastPack(
+        title=f"Forecast Pack — {brief.title}",
+        decision_id=case.decision_id,
+        lock_state=_lock_state(case),
+        sections=[
+            base_section,
+            drivers_section,
+            finance_view,
+            strategy_view,
+            compliance_view,
+            stress_section,
+            lock_section,
+        ],
+    )
+
+
+def build_investment_case_memo(
+    *,
+    brief: InvestmentBrief,
+    case: DecisionCase,
+    turns: List[TurnResult],
+) -> InvestmentCaseMemo:
+    by_agent = _by_agent(turns)
+    finance = by_agent.get("finance")
+    strategy = by_agent.get("strategy")
+    compliance = by_agent.get("compliance")
+
+    inputs_section = {
+        "heading": "Investment Inputs",
+        "bullets": [
+            f"Amount: ${brief.investment_amount_usd:,.0f}",
+            f"Expected payback: {brief.expected_payback_months} months",
+            f"Current runway: {brief.current_runway_months} months "
+            f"(floor: {brief.minimum_runway_months})",
+        ],
+    }
+    upside_section = {
+        "heading": "Strategic Upside",
+        "bullets": brief.expected_upside or ["(none stated)"],
+    }
+    risks_section = {
+        "heading": "Key Risks",
+        "bullets": brief.key_risks or ["(none stated)"],
+    }
+    finance_view = {
+        "heading": "Finance Recommendation",
+        "bullets": _agent_bullets(finance),
+    }
+    strategy_view = {
+        "heading": "Strategy Positioning",
+        "bullets": _agent_bullets(strategy),
+    }
+    compliance_view = {
+        "heading": "Compliance Conditions",
+        "bullets": _agent_bullets(compliance),
+    }
+    flip_section = {
+        "heading": "Flip Criteria",
+        "bullets": _flip_criteria(turns)
+        or [
+            "Runway breaks the floor under downside",
+            "Adoption slips by more than one planning cycle",
+        ],
+    }
+    lock_section = {
+        "heading": "Lock Status",
+        "bullets": [
+            f"Foundation score: {case.foundation_score}",
+            f"Status: {_lock_state(case)}",
+            "Capital release is gated on milestone-by-milestone confirmation.",
+        ],
+    }
+
+    return InvestmentCaseMemo(
+        title=f"Investment Case Memo — {brief.title}",
+        decision_id=case.decision_id,
+        lock_state=_lock_state(case),
+        sections=[
+            inputs_section,
+            upside_section,
+            risks_section,
+            finance_view,
+            strategy_view,
+            compliance_view,
+            flip_section,
+            lock_section,
+        ],
+    )
+
+
+def build_board_output(
+    *,
+    brief: BoardBrief,
+    case: DecisionCase,
+    turns: List[TurnResult],
+) -> BoardOutput:
+    by_agent = _by_agent(turns)
+    finance = by_agent.get("finance")
+    strategy = by_agent.get("strategy")
+    compliance = by_agent.get("compliance")
+
+    options = brief.options or ["Approve", "Defer", "Reject"]
+    rec_idx = max(0, min(brief.recommended_option_index, len(options) - 1))
+
+    decision_section = {
+        "heading": "Decision Statement",
+        "bullets": [brief.problem],
+    }
+    options_section = {
+        "heading": "Options",
+        "bullets": [
+            f"{'(recommended) ' if i == rec_idx else ''}{i + 1}. {opt}"
+            for i, opt in enumerate(options)
+        ],
+    }
+    open_q_section = {
+        "heading": "Open Questions",
+        "bullets": brief.open_questions or ["(none surfaced)"],
+    }
+    risks_section = {
+        "heading": "Strategic Risks",
+        "bullets": brief.strategic_risks or ["(none stated)"],
+    }
+    finance_view = {
+        "heading": "Finance Read",
+        "bullets": _agent_bullets(finance),
+    }
+    strategy_view = {
+        "heading": "Strategy Read",
+        "bullets": _agent_bullets(strategy),
+    }
+    compliance_view = {
+        "heading": "Compliance Read",
+        "bullets": _agent_bullets(compliance),
+    }
+    lock_section = {
+        "heading": "Lock + Replay",
+        "bullets": [
+            f"Foundation score: {case.foundation_score}",
+            f"Status: {_lock_state(case)}",
+            "Decision lock progresses only after validator confirmation (CHP).",
+            "Vote, dissent, and flip criteria are recorded in the registry.",
+        ],
+    }
+
+    return BoardOutput(
+        title=f"Board Output — {brief.title}",
+        decision_id=case.decision_id,
+        lock_state=_lock_state(case),
+        sections=[
+            decision_section,
+            options_section,
+            open_q_section,
+            risks_section,
+            finance_view,
+            strategy_view,
+            compliance_view,
+            lock_section,
+        ],
+    )
+
+
+def _agent_bullets(turn: TurnResult | None) -> List[str]:
+    if not turn:
+        return ["(agent did not run)"]
+    bullets: List[str] = [f"Recommendation: {turn.trace.recommendation}"]
+    if turn.trace.what_would_change:
+        bullets.append(f"Would change if: {turn.trace.what_would_change}")
+    bullets.append(f"Confidence: {turn.trace.confidence.value}")
+    if turn.deltas_applied:
+        bullets.append(f"Playbook deltas: {len(turn.deltas_applied)}")
+    return bullets
+
+
+def _flip_criteria(turns: List[TurnResult]) -> List[str]:
+    criteria: List[str] = []
+    for t in turns:
+        if t.trace.what_would_change:
+            criteria.append(f"{t.agent}: {t.trace.what_would_change}")
+    return criteria
+
+===== ***REDACTED_PATH***/convergence-cfo-ref/src/cme/cfo_os/audit.py =====
+"""Audit trail fusing Mesh reasoning, shared context, and CHP foundation state.
+
+Each ``AuditEntry`` ties one fact in the final CFO artifact back to:
+    - the agent that produced it,
+    - the expansion step in that agent's reasoning,
+    - the grounding source/confidence,
+    - the CHP foundation findings that hardened or weakened it.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Iterable, List
+
+from cme.agent import TurnResult
+from cme.chp.models import DecisionCase, FoundationAttack, FoundationDisclosure
+from cme.protocol import ExpansionStep, GroundingCheck
+
+
+@dataclass
+class AuditEntry:
+    agent: str
+    claim: str
+    expansion_label: str
+    expansion_excerpt: str
+    grounding_source: str
+    grounding_confidence: str
+    risk_flag: str = ""
+
+    def render(self) -> str:
+        risk = f" [RISK: {self.risk_flag}]" if self.risk_flag else ""
+        return (
+            f"- **{self.agent}** | {self.expansion_label} | source={self.grounding_source} "
+            f"| conf={self.grounding_confidence}{risk}\n"
+            f"  - claim: {self.claim}\n"
+            f"  - excerpt: {self.expansion_excerpt}"
+        )
+
+
+@dataclass
+class AuditTrail:
+    entries: List[AuditEntry] = field(default_factory=list)
+    foundation_findings: List[str] = field(default_factory=list)
+    structural_vulnerabilities: List[str] = field(default_factory=list)
+    failure_modes: List[str] = field(default_factory=list)
+    context_writes: List[str] = field(default_factory=list)
+
+    def render(self) -> str:
+        lines = ["## Audit Trail", ""]
+        if self.foundation_findings:
+            lines.append("### CHP Foundation Findings")
+            for f in self.foundation_findings:
+                lines.append(f"- {f}")
+            lines.append("")
+        if self.structural_vulnerabilities:
+            lines.append("### Structural Vulnerabilities")
+            for v in self.structural_vulnerabilities:
+                lines.append(f"- {v}")
+            lines.append("")
+        if self.failure_modes:
+            lines.append("### Detected Failure Modes")
+            for m in self.failure_modes:
+                lines.append(f"- {m}")
+            lines.append("")
+        lines.append("### Per-Claim Provenance")
+        for e in self.entries:
+            lines.append(e.render())
+        if self.context_writes:
+            lines.append("")
+            lines.append("### Shared-Context Writes")
+            for w in self.context_writes:
+                lines.append(f"- {w}")
+        return "\n".join(lines)
+
+
+def build_audit_trail(
+    *,
+    turns: Iterable[TurnResult],
+    case: DecisionCase,
+    disclosure: FoundationDisclosure,
+    attack: FoundationAttack,
+) -> AuditTrail:
+    entries: List[AuditEntry] = []
+    failure_modes: List[str] = []
+    context_writes: List[str] = []
+
+    for turn in turns:
+        trace = turn.trace
+        # One audit entry per expansion step: each step is a unit of reasoning.
+        for step in trace.expansion:
+            grounding = _grounding_for_step(step, trace.grounding)
+            entries.append(
+                AuditEntry(
+                    agent=turn.agent,
+                    claim=step.label,
+                    expansion_label=step.label,
+                    expansion_excerpt=step.content[:160],
+                    grounding_source=grounding.source if grounding else "inferred",
+                    grounding_confidence=(
+                        grounding.confidence.value if grounding else trace.confidence.value
+                    ),
+                    risk_flag=grounding.risk_flag if grounding and grounding.risk_flag else "",
+                )
+            )
+        # Final recommendation entry
+        final_grounding = trace.grounding[-1] if trace.grounding else None
+        entries.append(
+            AuditEntry(
+                agent=turn.agent,
+                claim="recommendation",
+                expansion_label="Recommendation",
+                expansion_excerpt=trace.recommendation[:160],
+                grounding_source=(
+                    final_grounding.source if final_grounding else "inferred"
+                ),
+                grounding_confidence=trace.confidence.value,
+                risk_flag=(
+                    final_grounding.risk_flag
+                    if final_grounding and final_grounding.risk_flag
+                    else ""
+                ),
+            )
+        )
+        for note in turn.handoff_notes:
+            if note.startswith("warning:"):
+                failure_modes.append(f"{turn.agent}: {note[len('warning:'):]}")
+        context_writes.append(
+            f"{turn.agent} wrote recommendation to shared context (importance derived from "
+            f"confidence={trace.confidence.value})"
+        )
+
+    foundation_findings = [
+        f"R0 dossier scope populated: {bool(case.dossier and case.dossier.scope)}",
+        f"Foundation score: {attack.foundation_score} (>=70 hardens)",
+        f"Disclosed weak assumptions: {len(disclosure.weakest_assumptions)}",
+        f"Attack vectors: {len(attack.assumption_attacks)}",
+        f"Key vulnerability: {disclosure.key_vulnerability}",
+        f"Attack summary: {attack.attack_summary}",
+    ]
+
+    return AuditTrail(
+        entries=entries,
+        foundation_findings=foundation_findings,
+        structural_vulnerabilities=list(case.structural_vulnerabilities),
+        failure_modes=failure_modes,
+        context_writes=context_writes,
+    )
+
+
+def _grounding_for_step(
+    step: ExpansionStep, grounding: List[GroundingCheck]
+) -> GroundingCheck | None:
+    needle = step.content[:60]
+    for g in grounding:
+        if g.claim.startswith(needle[:40]):
+            return g
+    return None
+
+===== ***REDACTED_PATH***/convergence-cfo-ref/src/cme/cfo_os/orchestrator.py =====
+"""CFOOperatingSystem — fuses Mesh agents with CHP hardening.
+
+A single ``run(brief)`` does the following:
+
+    1. Builds a CHP ``DecisionCase`` + ``FoundationDisclosure`` + ``FoundationAttack``
+       from the brief.
+    2. Seeds the shared ``ContextEngine`` with the brief and the dossier so all
+       three agents read from the same organizational view.
+    3. Runs the ``EnterpriseOrchestrator`` (Finance -> Strategy -> Compliance,
+       topologically sorted) so each agent contributes a reasoning trace and
+       playbook deltas on shared context.
+    4. Advances the CHP session: R0 gate, foundation verdict, parity assessment,
+       initial payload envelope. If foundation passes and no failure modes
+       triggered, the session advances to ``PROVISIONAL_LOCK``.
+    5. Synthesizes a domain-specific CFO artifact tied back to every claim's
+       origin via an ``AuditTrail``.
+
+The output is a ``CFOSessionReport`` that renders to a single board-ready
+markdown document.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import List, Optional
+
+from cme.agent import MeshAgent, TurnResult
+from cme.bridge import EntryPoint
+from cme.chp.foundation import foundation_verdict, validate_foundation_pair
+from cme.chp.gates import evaluate_r0_gate
+from cme.chp.models import (
+    DecisionCase,
+    FoundationAttack,
+    FoundationDisclosure,
+    SessionStatus,
+    ThirdPartyValidation,
+    ValidationResult,
+    Verdict,
+)
+from cme.chp.orchestrator import CHPOrchestrator
+from cme.chp.parity import assess_model_parity
+from cme.chp.payloads import build_payload_envelope
+from cme.chp.registry import DecisionRegistry
+from cme.chp.validators import apply_third_party_validation
+from cme.context import ContextEngine, Entity, Task
+from cme.orchestrator import EnterpriseOrchestrator, OrchestrationReport
+
+from cme.cfo_os.artifacts import (
+    BoardOutput,
+    CFOArtifact,
+    ForecastPack,
+    InvestmentCaseMemo,
+    build_board_output,
+    build_forecast_pack,
+    build_investment_case_memo,
+)
+from cme.cfo_os.audit import AuditTrail, build_audit_trail
+from cme.cfo_os.briefs import BoardBrief, CFOBrief, CFOTaskType, ForecastBrief, InvestmentBrief
+from cme.cfo_os.dossier_builders import build_decision_case
+
+
+@dataclass
+class CFOSessionReport:
+    brief: CFOBrief
+    case: DecisionCase
+    foundation_disclosure: FoundationDisclosure
+    foundation_attack: FoundationAttack
+    r0_verdict: Verdict
+    foundation_verdict: Verdict
+    initial_packet: str
+    orchestration: OrchestrationReport
+    artifact: CFOArtifact
+    audit: AuditTrail
+    turns: List[TurnResult] = field(default_factory=list)
+
+    def render(self) -> str:
+        sections = [
+            "# CFO OS Session",
+            f"**Task:** {self.brief.task_type.value}",
+            f"**Title:** {self.brief.title}",
+            f"**Company:** {self.brief.company}",
+            f"**Lock state:** `{self.case.status.value}`",
+            f"**Foundation score:** {self.case.foundation_score}  ·  "
+            f"R0: `{self.r0_verdict.value}`  ·  Foundation: `{self.foundation_verdict.value}`",
+            "",
+            self.artifact.render(),
+            "",
+            self.audit.render(),
+            "",
+            "## Initial CHP Packet",
+            "```",
+            self.initial_packet,
+            "```",
+            "",
+            "## Mesh Orchestration Detail",
+            self.orchestration.render(),
+        ]
+        return "\n".join(sections)
+
+
+class CFOOperatingSystem:
+    """High-level CFO orchestrator. Mesh agents + CHP hardening on shared context."""
+
+    def __init__(
+        self,
+        *,
+        agents: List[MeshAgent],
+        registry: Optional[DecisionRegistry] = None,
+        context: Optional[ContextEngine] = None,
+        company_name: str = "Aperture Corp",
+    ) -> None:
+        if not agents:
+            raise ValueError("CFOOperatingSystem requires at least one MeshAgent")
+        self.agents = agents
+        self.registry = registry or DecisionRegistry()
+        self.context = context or ContextEngine()
+        self.company_name = company_name
+        self._chp = CHPOrchestrator(registry=self.registry, context=self.context)
+        self._mesh = EnterpriseOrchestrator(agents=self.agents, context=self.context)
+
+    # --- Public API ------------------------------------------------------
+
+    def run(self, brief: CFOBrief) -> CFOSessionReport:
+        case, disclosure, attack = build_decision_case(brief)
+        self._seed_context(brief, case)
+
+        chp_report = self._chp.run_initial_session(
+            case=case,
+            foundation_disclosure=disclosure,
+            foundation_attack=attack,
+        )
+
+        orchestration = self._mesh.orchestrate(
+            brief.problem,
+            entry_point=EntryPoint.PROBLEM,
+            workflow_title=f"{brief.task_type.value}: {brief.title[:60]}",
+        )
+
+        self._advance_lock_state(chp_report.case, chp_report.foundation_verdict, orchestration.turns)
+
+        artifact = self._build_artifact(brief, chp_report.case, orchestration.turns)
+        audit = build_audit_trail(
+            turns=orchestration.turns,
+            case=chp_report.case,
+            disclosure=disclosure,
+            attack=attack,
+        )
+
+        return CFOSessionReport(
+            brief=brief,
+            case=chp_report.case,
+            foundation_disclosure=disclosure,
+            foundation_attack=attack,
+            r0_verdict=chp_report.r0_verdict,
+            foundation_verdict=chp_report.foundation_verdict,
+            initial_packet=chp_report.initial_packet,
+            orchestration=orchestration,
+            artifact=artifact,
+            audit=audit,
+            turns=orchestration.turns,
+        )
+
+    def lock(
+        self,
+        decision_id: str,
+        *,
+        validator: str,
+        item: str,
+        rationale: str,
+        challenge: str = "Stress test before lock progression.",
+        confirm: bool = True,
+    ) -> DecisionCase:
+        """Apply a third-party validation; advance lock state."""
+        case = self.registry.get(decision_id)
+        if not case:
+            raise KeyError(f"Unknown decision_id: {decision_id}")
+        validation = ThirdPartyValidation(
+            validator=validator,
+            item=item,
+            challenge=challenge,
+            result=ValidationResult.CONFIRM if confirm else ValidationResult.REJECT,
+            rationale=rationale,
+        )
+        apply_third_party_validation(case, validation)
+        return case
+
+    # --- Internals -------------------------------------------------------
+
+    def _seed_context(self, brief: CFOBrief, case: DecisionCase) -> None:
+        self.context.upsert_entity(
+            Entity(
+                id="org",
+                type="org",
+                attributes={"name": brief.company or self.company_name, "horizon": brief.horizon},
+            )
+        )
+        self.context.upsert_entity(
+            Entity(
+                id=case.decision_id,
+                type="decision_case",
+                attributes={
+                    "title": case.title,
+                    "domain": case.domain,
+                    "owner": case.owner,
+                    "high_stakes": case.high_stakes,
+                    "task_type": brief.task_type.value,
+                },
+            )
+        )
+        if case.dossier:
+            for i, c in enumerate(case.dossier.constraints[:6]):
+                self.context.upsert_entity(
+                    Entity(
+                        id=f"{case.decision_id}-constraint-{i}",
+                        type="constraint",
+                        attributes={"text": c},
+                    )
+                )
+        self.context.add_task(
+            Task(
+                id=f"task-{case.decision_id}",
+                goal=f"Harden {brief.task_type.value}: {brief.title}",
+                status="in_progress",
+                owner=case.owner,
+            )
+        )
+        self.context.record_event(
+            actor="cfo_os",
+            action="session_open",
+            object_=case.decision_id,
+        )
+
+    def _advance_lock_state(
+        self, case: DecisionCase, f_verdict: Verdict, turns: List[TurnResult]
+    ) -> None:
+        # Foundation has to pass and no failure mode in any turn for provisional lock.
+        any_failure = any(
+            note.startswith("warning:") for t in turns for note in t.handoff_notes
+        )
+        # Don't downgrade EXISTING harder states (HALT / REFRAME) set upstream.
+        if case.status in {SessionStatus.HALT, SessionStatus.REFRAME_REQUIRED}:
+            return
+        if f_verdict == Verdict.PASS and not any_failure:
+            case.status = SessionStatus.PROVISIONAL_LOCK
+
+    def _build_artifact(
+        self, brief: CFOBrief, case: DecisionCase, turns: List[TurnResult]
+    ) -> CFOArtifact:
+        if isinstance(brief, ForecastBrief):
+            return build_forecast_pack(brief=brief, case=case, turns=turns)
+        if isinstance(brief, InvestmentBrief):
+            return build_investment_case_memo(brief=brief, case=case, turns=turns)
+        if isinstance(brief, BoardBrief):
+            return build_board_output(brief=brief, case=case, turns=turns)
+        raise TypeError(f"Unsupported brief type: {type(brief).__name__}")
+
+    # Re-expose CHP primitives for callers that want raw access ----------
+
+    @staticmethod
+    def assess_parity(origin_model: str, partner_model: str):
+        return assess_model_parity(origin_model, partner_model)
+
+    @staticmethod
+    def evaluate_r0(case: DecisionCase) -> Verdict:
+        return evaluate_r0_gate(
+            solvable=True,
+            scoped=bool(case.dossier and case.dossier.scope),
+            valid=bool(case.dossier and case.dossier.current_state),
+            worth_it=case.high_stakes,
+        ).verdict
+
+    @staticmethod
+    def validate_foundation(
+        disclosure: FoundationDisclosure, attack: FoundationAttack
+    ) -> List[str]:
+        return validate_foundation_pair(disclosure, attack)
+
+    @staticmethod
+    def envelope(body: str) -> str:
+        return build_payload_envelope(body).render()
+
+    @staticmethod
+    def foundation_pass(attack: FoundationAttack) -> bool:
+        return foundation_verdict(attack) == Verdict.PASS
+
+===== ***REDACTED_PATH***/convergence-cfo-ref/src/cme/cfo_os/__init__.py =====
+"""Multi-Agent CFO Operating System.
+
+Capstone layer that fuses the Cognitive Mesh (Finance + Strategy + Compliance
+agents on a shared ContextEngine) with the Consensus Hardening Protocol (CHP
+DecisionCase, foundation hardening, lock progression) to produce three CFO-grade
+artifacts with a single auditable reasoning trail:
+
+    - ForecastPack       (driver-level forecast with stress views)
+    - InvestmentCaseMemo (capital allocation case with ROI + risks)
+    - BoardOutput        (decision packet for the board with locked options)
+
+A single ``CFOOperatingSystem`` run produces:
+
+    1. A CHP-hardened ``DecisionCase`` (foundation disclosure + attack + R0 gate
+       + parity assessment + initial payload envelope).
+    2. A multi-agent reasoning record (3 Mesh agent turns on shared context
+       with playbook deltas).
+    3. A domain-specific artifact tied back to every claim's origin.
+    4. An ``AuditTrail`` linking each artifact line to an agent expansion step,
+       a context entity/event, and the CHP foundation verdict.
+"""
+
+from cme.cfo_os.briefs import (
+    BoardBrief,
+    CFOBrief,
+    CFOTaskType,
+    ForecastBrief,
+    InvestmentBrief,
+)
+from cme.cfo_os.artifacts import (
+    BoardOutput,
+    CFOArtifact,
+    ForecastPack,
+    InvestmentCaseMemo,
+)
+from cme.cfo_os.audit import AuditTrail, AuditEntry
+from cme.cfo_os.orchestrator import CFOOperatingSystem, CFOSessionReport
+
+__all__ = [
+    "AuditEntry",
+    "AuditTrail",
+    "BoardBrief",
+    "BoardOutput",
+    "CFOArtifact",
+    "CFOBrief",
+    "CFOOperatingSystem",
+    "CFOSessionReport",
+    "CFOTaskType",
+    "ForecastBrief",
+    "ForecastPack",
+    "InvestmentBrief",
+    "InvestmentCaseMemo",
+]
+
+===== ***REDACTED_PATH***/convergence-chp-ref/src/cme/chp/accuracy.py =====
+"""Mandatory finance-analysis guard for CFO-grade CHP workflows."""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import List
+
+from cme.chp.models import DecisionCase, SessionStatus
+from cme.chp.runner import TriangulationResult, TriangulationRunner
+
+
+@dataclass(frozen=True)
+class CFOAccuracyPolicy:
+    required_foundation_score: int = 100
+    require_no_open_structural_vulnerabilities: bool = True
+    require_no_open_blind_spots: bool = True
+
+    def violations(self, case: DecisionCase) -> List[str]:
+        issues: List[str] = []
+        score = case.foundation_score or 0
+        if score < self.required_foundation_score:
+            issues.append(f"foundation score {score} is below CFO accuracy floor {self.required_foundation_score}")
+        if self.require_no_open_structural_vulnerabilities and case.structural_vulnerabilities:
+            issues.append("open structural vulnerabilities remain")
+        if self.require_no_open_blind_spots and case.blind_spots:
+            issues.append("open blind spots remain")
+        return issues
+
+
+@dataclass
+class FinancialAnalysisGuardResult:
+    policy: CFOAccuracyPolicy
+    triangulation: TriangulationResult
+    violations: List[str] = field(default_factory=list)
+
+    @property
+    def requires_human_verification(self) -> bool:
+        return bool(self.violations)
+
+    def render(self) -> str:
+        lines = [
+            "## CFO Accuracy Guard",
+            f"- Status: {'REQUIRES_HUMAN_VERIFICATION' if self.requires_human_verification else 'CLEAR'}",
+            f"- Accuracy Floor: {self.policy.required_foundation_score}",
+        ]
+        if self.violations:
+            lines.append("- Blocking Violations:")
+            lines.extend(f"  - {item}" for item in self.violations)
+        lines.append(self.triangulation.render())
+        return "\n".join(lines)
+
+
+class FinancialAnalysisGuard:
+    """Enforces mandatory CHP + adversary pass for finance analysis outputs."""
+
+    def __init__(
+        self,
+        *,
+        policy: CFOAccuracyPolicy | None = None,
+        triangulation_runner: TriangulationRunner | None = None,
+    ) -> None:
+        self.policy = policy or CFOAccuracyPolicy()
+        self.triangulation_runner = triangulation_runner or TriangulationRunner()
+
+    def guard_case(self, case: DecisionCase, *, claim: str, context: str = "") -> FinancialAnalysisGuardResult:
+        triangulation = self.triangulation_runner.run_adversary(
+            claim,
+            context=context,
+            high_stakes=case.high_stakes,
+        )
+        violations = self.policy.violations(case)
+        if triangulation.verification:
+            violations.extend(triangulation.verification.failures())
+        if triangulation.report.case.foundation_score and triangulation.report.case.foundation_score < self.policy.required_foundation_score:
+            violations.append(
+                f"adversary foundation score {triangulation.report.case.foundation_score} is below CFO accuracy floor {self.policy.required_foundation_score}"
+            )
+        case.blind_spots = list(dict.fromkeys(case.blind_spots + triangulation.adversary_findings))
+        if violations and case.status == SessionStatus.LOCKED:
+            case.status = SessionStatus.REQUIRES_HUMAN_VERIFICATION
+        elif violations and case.status in {SessionStatus.PROVISIONAL, SessionStatus.PROVISIONAL_LOCK, SessionStatus.EXPLORING}:
+            case.status = SessionStatus.REQUIRES_HUMAN_VERIFICATION
+        return FinancialAnalysisGuardResult(
+            policy=self.policy,
+            triangulation=triangulation,
+            violations=list(dict.fromkeys(violations)),
+        )
+
+===== ***REDACTED_PATH***/convergence-chp-ref/src/cme/chp/adversary_agent.py =====
+"""MeshAgent wrapper that runs a CHP adversary pass."""
+from __future__ import annotations
+
+from typing import Any, Dict, List
+
+from cme.agent import AgentCapability, MeshAgent
+from cme.chp.runner import TriangulationRunner
+from cme.protocol import CompressionStep, ConfidenceLevel, ExpansionStep
+
+
+class AdversaryMeshAgent(MeshAgent):
+    """Drop-in mesh agent for fact-checking finance recommendations."""
+
+    def __init__(self, *, runner: TriangulationRunner | None = None) -> None:
+        super().__init__(
+            name="chp_adversary",
+            capability=AgentCapability(
+                domain="finance_adversary",
+                produces=["adversary_findings", "verification_gate"],
+                consumes=["recommendation", "financial_analysis"],
+            ),
+        )
+        self.runner = runner or TriangulationRunner()
+
+    def expand(self, problem: str, context: Dict[str, Any]) -> List[ExpansionStep]:
+        result = self.runner.run_adversary(problem, context=str(context), high_stakes=True)
+        findings = result.adversary_findings or ["No adversary findings generated."]
+        return [
+            ExpansionStep(label="Foundation Attack", content=result.report.foundation_attack.attack_summary),
+            ExpansionStep(label="Accuracy Gate", content=result.render()),
+            ExpansionStep(label="Findings", content=" | ".join(findings)),
+        ]
+
+    def compress(
+        self,
+        problem: str,
+        expansion: List[ExpansionStep],
+        context: Dict[str, Any],
+    ) -> tuple[str, List[CompressionStep], ConfidenceLevel, str, Dict[str, Any]]:
+        result = self.runner.run_adversary(problem, context=str(context), high_stakes=True)
+        recommendation = (
+            "Require human verification before lock."
+            if result.report.case.foundation_score != 100
+            else "Adversary pass clear."
+        )
+        return (
+            recommendation,
+            [CompressionStep(label="Adversary Decision", content=result.render())],
+            ConfidenceLevel.HIGH if result.report.case.foundation_score == 100 else ConfidenceLevel.LOW,
+            "Would change only if all financial claims are source-verified and no vulnerabilities remain.",
+            {
+                "adversary_findings": result.adversary_findings,
+                "verification_gate": result.status.value,
+            },
+        )
+
+===== ***REDACTED_PATH***/convergence-chp-ref/src/cme/chp/runner.py =====
+"""Triangulation runner for adversarial CHP passes."""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from typing import List
+
+from cme.chp.contracts import CouncilSpawn, VerificationChecklist
+from cme.chp.models import DecisionCase, Dossier, FoundationAttack, FoundationDisclosure, SessionStatus
+from cme.chp.orchestrator import CHPOrchestrator, CHPReport
+
+
+@dataclass
+class TriangulationResult:
+    claim: str
+    report: CHPReport
+    adversary_findings: List[str] = field(default_factory=list)
+    council_spawn: CouncilSpawn | None = None
+    verification: VerificationChecklist | None = None
+
+    @property
+    def status(self) -> SessionStatus:
+        return self.report.case.status
+
+    def render(self) -> str:
+        lines = [
+            "## TriangulationRunner Adversary Pass",
+            f"- Claim: {self.claim}",
+            f"- Status: {self.status.value}",
+            f"- Foundation Score: {self.report.case.foundation_score}",
+        ]
+        if self.adversary_findings:
+            lines.append("- Findings:")
+            lines.extend(f"  - {item}" for item in self.adversary_findings)
+        if self.council_spawn:
+            lines.append(f"- Council Spawn: {self.council_spawn.trigger_reason}")
+        if self.verification:
+            failures = self.verification.failures()
+            lines.append(f"- Verification Failures: {len(failures)}")
+            lines.extend(f"  - {item}" for item in failures[:6])
+        return "\n".join(lines)
+
+
+class TriangulationRunner:
+    """Runs a one-shot CHP adversary/fact-check pass around a claim."""
+
+    def __init__(self, *, orchestrator: CHPOrchestrator | None = None) -> None:
+        self.orchestrator = orchestrator or CHPOrchestrator()
+
+    @classmethod
+    def as_adversary(cls, claim: str, *, context: str = "", high_stakes: bool = True) -> TriangulationResult:
+        return cls().run_adversary(claim, context=context, high_stakes=high_stakes)
+
+    def run_adversary(self, claim: str, *, context: str = "", high_stakes: bool = True) -> TriangulationResult:
+        case, disclosure, attack = self._build_case(claim, context=context, high_stakes=high_stakes)
+        report = self.orchestrator.run_initial_session(
+            case=case,
+            foundation_disclosure=disclosure,
+            foundation_attack=attack,
+        )
+        confidence = report.case.foundation_score or 0
+        council = CouncilSpawn.maybe_spawn(
+            high_stakes=high_stakes,
+            confidence_pct=confidence,
+            current_round=report.case.current_round,
+        )
+        verification = VerificationChecklist.run(report.case, packet=report.initial_packet)
+        findings = self._findings(claim, context=context)
+        return TriangulationResult(
+            claim=claim,
+            report=report,
+            adversary_findings=findings,
+            council_spawn=council,
+            verification=verification,
+        )
+
+    def _build_case(
+        self,
+        claim: str,
+        *,
+        context: str,
+        high_stakes: bool,
+    ) -> tuple[DecisionCase, FoundationDisclosure, FoundationAttack]:
+        score = self._foundation_score(claim, context)
+        dossier = Dossier(
+            core_problem=f"Fact-check and adversarially validate this finance claim: {claim}",
+            goal_state=[
+                "No unsupported numeric claim advances without human-readable evidence",
+                "All open assumptions, blind spots, and structural vulnerabilities are explicit",
+                "Decision output remains blocked unless finance accuracy policy is satisfied",
+            ],
+            current_state=[
+                f"Claim under review: {claim}",
+                f"Context length: {len(context)} characters",
+                f"Initial adversary foundation score: {score}",
+            ],
+            constraints=[
+                "CFO workflows require human-verifiable accuracy",
+                "No final lock if a vulnerability or blind spot remains open",
+                "All analysis must survive adversarial foundation attack",
+            ],
+            unknowns=[
+                "Whether all numbers are tied to auditable source data",
+                "Whether the recommendation depends on untested assumptions",
+            ],
+            scope=[
+                "Foundation attack",
+                "Spec validation",
+                "Human verification gate",
+            ],
+            origin_direction=[
+                "Assume the claim is incomplete until evidence proves otherwise",
+                "Prioritize falsification over agreement",
+                "Block lock progression when finance evidence is incomplete",
+            ],
+            structural_vulnerabilities=[
+                "Financial analysis can look precise while source evidence is incomplete",
+                "A model can converge around a narrative before the math is fully verified",
+            ],
+        )
+        case = DecisionCase(
+            decision_id=f"triangulation-{abs(hash(claim)) % 10_000_000}",
+            title="TriangulationRunner adversary pass",
+            domain="finance_adversary",
+            created_at=datetime.now(timezone.utc).isoformat(),
+            owner="cfo",
+            high_stakes=high_stakes,
+            origin_system="CHP",
+            origin_model="adversary-runner",
+            partner_system="Partner",
+            partner_model="fact-check-agent",
+            dossier=dossier,
+        )
+        disclosure = FoundationDisclosure(
+            weakest_assumptions=[
+                "The claim is numerically accurate and source-grounded",
+                "The recommendation does not hide material uncertainty",
+                "The analysis can be trusted without additional human verification",
+            ],
+            invalidation_conditions=[
+                "Any key number lacks source evidence or reproducible calculation",
+                "Any open blind spot or structural vulnerability remains unresolved",
+            ],
+            key_vulnerability="The claim can sound CFO-ready before it is actually audit-ready.",
+        )
+        attack = FoundationAttack(
+            assumption_attacks=[
+                "Numeric precision is not the same as verified accuracy.",
+                "A confident recommendation may compress unresolved assumptions.",
+                "Finance decisions can fail when source data, timing, or definitions are inconsistent.",
+            ],
+            invalidation_exploitation=[
+                "One unsupported KPI or forecast input can invalidate the downstream recommendation.",
+                "One unresolved blind spot can block lock progression under the CFO accuracy policy.",
+            ],
+            vulnerability_strike="This analysis must remain blocked unless every material number and assumption is human-verifiable.",
+            foundation_score=score,
+            attack_summary="The adversary pass treats the claim as untrusted until evidence, assumptions, and vulnerabilities are fully resolved.",
+        )
+        dossier.foundation_score = score
+        return case, disclosure, attack
+
+    @staticmethod
+    def _foundation_score(claim: str, context: str) -> int:
+        score = 82
+        lowered = f"{claim} {context}".lower()
+        if any(token in lowered for token in ("estimated", "assume", "rough", "directional", "approx")):
+            score -= 10
+        if any(char.isdigit() for char in claim) and not any(token in lowered for token in ("source", "csv", "xlsx", "ledger", "actual", "budget")):
+            score -= 8
+        if "100%" not in lowered and "verified" not in lowered:
+            score -= 5
+        return max(50, min(95, score))
+
+    @staticmethod
+    def _findings(claim: str, *, context: str) -> List[str]:
+        findings = [
+            "Treat every financial number as unverified until tied to source data.",
+            "Require explicit flip criteria for any provisional recommendation.",
+        ]
+        if any(char.isdigit() for char in claim) and "source" not in context.lower():
+            findings.append("The claim includes a number but no explicit source reference in context.")
+        return findings
+
+===== ***REDACTED_PATH***/convergence-chp-ref/src/cme/chp/contracts.py =====
+"""Strict CHP packet, council, closure, and verification contracts."""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any, Dict, List
+
+from cme.chp.models import DecisionCase, Phase, SessionStatus, StateSnapshot, Verdict
+from cme.chp.payloads import validate_payload_envelope
+
+
+MAX_ROUNDS = 5
+ORIGIN_REQUIRED_SECTIONS = (
+    "1. CORE_PROBLEM_STATEMENT",
+    "2. PARTNER_SYSTEM_PACKET",
+    "3. TRANSMISSION_CHECKLIST",
+)
+PARTNER_REQUIRED_SECTIONS = (
+    "ITEM_AGREEMENTS",
+    "WINNER_FRAMING",
+    "SCORING_TABLE",
+    "OBJECTIONS",
+    "FRAMEWORKS",
+    "CONVERGENCE_PLAN",
+    "STATE_SNAPSHOT",
+)
+
+
+@dataclass
+class ItemAgreement:
+    item: str
+    score: int
+    status: SessionStatus
+    disagreement: str = ""
+    revision: str = ""
+    flip_criteria: str = ""
+    third_party_status: str = "N/A"
+
+    def validate(self) -> List[str]:
+        errors: List[str] = []
+        if not 0 <= self.score <= 100:
+            errors.append(f"{self.item}: score must be 0-100")
+        if self.status == SessionStatus.PROVISIONAL and not self.flip_criteria:
+            errors.append(f"{self.item}: PROVISIONAL requires FLIP_CRITERIA")
+        if self.status == SessionStatus.PROVISIONAL and self.score >= 90:
+            errors.append(f"{self.item}: PROVISIONAL score must be below 90")
+        if self.status == SessionStatus.PROVISIONAL_LOCK and self.score < 90:
+            errors.append(f"{self.item}: PROVISIONAL_LOCK requires score >=90")
+        return errors
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "item": self.item,
+            "score": self.score,
+            "status": self.status.value,
+            "disagreement": self.disagreement,
+            "revision": self.revision,
+            "flip_criteria": self.flip_criteria,
+            "third_party_status": self.third_party_status,
+        }
+
+
+@dataclass
+class ScoringOption:
+    name: str
+    clarity: int
+    leverage: int
+    risk: int
+    winner: bool = False
+
+    @property
+    def total(self) -> int:
+        return self.clarity + self.leverage + self.risk
+
+    def validate(self) -> List[str]:
+        errors: List[str] = []
+        for label, value in (("clarity", self.clarity), ("leverage", self.leverage), ("risk", self.risk)):
+            if not 0 <= value <= 10:
+                errors.append(f"{self.name}: {label} must be 0-10")
+        return errors
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "name": self.name,
+            "clarity": self.clarity,
+            "leverage": self.leverage,
+            "risk": self.risk,
+            "winner": self.winner,
+            "total": self.total,
+        }
+
+
+@dataclass
+class PartnerPacket:
+    item_agreements: List[ItemAgreement]
+    winner_framing: str
+    scoring_table: List[ScoringOption]
+    objections: List[str]
+    frameworks: List[str]
+    convergence_plan: List[str]
+    state_snapshot: StateSnapshot
+    raw_payload: str = ""
+
+    def validate(self) -> List[str]:
+        errors: List[str] = []
+        if self.raw_payload and not validate_payload_envelope(self.raw_payload):
+            errors.append("partner packet payload envelope is invalid")
+        if self.raw_payload:
+            errors.extend(require_ascii(self.raw_payload))
+            for section in PARTNER_REQUIRED_SECTIONS:
+                if section not in self.raw_payload:
+                    errors.append(f"partner packet missing section: {section}")
+        for agreement in self.item_agreements:
+            errors.extend(agreement.validate())
+        for option in self.scoring_table:
+            errors.extend(option.validate())
+        winners = [option for option in self.scoring_table if option.winner]
+        if len(winners) != 1:
+            errors.append("SCORING_TABLE requires exactly one winner")
+        if winners and len({option.total for option in self.scoring_table}) != len(self.scoring_table):
+            errors.append("SCORING_TABLE cannot contain tied total scores")
+        if self.state_snapshot.round_number > MAX_ROUNDS:
+            errors.append("round_number exceeds max 5")
+        if self.state_snapshot.round_number == MAX_ROUNDS:
+            statuses = [agreement.status for agreement in self.item_agreements]
+            if SessionStatus.PROVISIONAL in statuses:
+                errors.append("Round 5 cannot return PROVISIONAL")
+        return errors
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "item_agreements": [item.to_dict() for item in self.item_agreements],
+            "winner_framing": self.winner_framing,
+            "scoring_table": [item.to_dict() for item in self.scoring_table],
+            "objections": self.objections,
+            "frameworks": self.frameworks,
+            "convergence_plan": self.convergence_plan,
+            "state_snapshot": self.state_snapshot.to_dict(),
+        }
+
+
+@dataclass
+class OriginPacketContract:
+    raw_payload: str
+
+    def validate(self) -> List[str]:
+        errors: List[str] = []
+        errors.extend(require_ascii(self.raw_payload))
+        if not validate_payload_envelope(self.raw_payload):
+            errors.append("origin payload envelope is invalid")
+        for section in ORIGIN_REQUIRED_SECTIONS:
+            if section not in self.raw_payload:
+                errors.append(f"origin packet missing section: {section}")
+        return errors
+
+
+@dataclass
+class CouncilSpawn:
+    trigger_reason: str
+    composition: List[str]
+    attack_phase: List[str]
+    peer_review: List[str]
+    synthesized_vulnerabilities: List[str]
+    feed_back_to_round: int
+
+    @classmethod
+    def maybe_spawn(cls, *, high_stakes: bool, confidence_pct: int, current_round: int) -> "CouncilSpawn | None":
+        if not high_stakes or confidence_pct >= 85:
+            return None
+        return cls(
+            trigger_reason=f"High-stakes decision with confidence {confidence_pct}% below 85%.",
+            composition=[
+                "Model 1 - Role: Attacker",
+                "Model 2 - Role: Attacker",
+                "Model 3 - Role: Synthesizer",
+            ],
+            attack_phase=[
+                "Attack foundation assumptions.",
+                "Attack evidence quality and missing data.",
+                "Attack implementation risk and false consensus.",
+            ],
+            peer_review=[
+                "Model 1 reviews Model 2 attack for missed constraints.",
+                "Model 2 reviews Model 3 synthesis for over-compression.",
+                "Model 3 reviews Model 1 attack for unsupported objections.",
+            ],
+            synthesized_vulnerabilities=[
+                "Confidence is below the high-stakes threshold.",
+                "At least one independent attacker is required before lock.",
+                "Human verification should remain active until vulnerabilities close.",
+            ],
+            feed_back_to_round=min(MAX_ROUNDS, current_round + 1),
+        )
+
+
+@dataclass
+class ConvergenceClosure:
+    status: SessionStatus
+    foundation_score: int | None
+    locked_decisions: List[str]
+    blind_spots_resolved: List[str] = field(default_factory=list)
+    blind_spots_accepted: List[str] = field(default_factory=list)
+    vulnerabilities_addressed: List[str] = field(default_factory=list)
+    vulnerabilities_accepted_risk: List[str] = field(default_factory=list)
+    session_urls: Dict[str, str] = field(default_factory=dict)
+    third_party_log: List[Dict[str, Any]] = field(default_factory=list)
+
+    @classmethod
+    def from_case(cls, case: DecisionCase, *, origin_url: str = "", partner_url: str = "") -> "ConvergenceClosure":
+        return cls(
+            status=case.status,
+            foundation_score=case.foundation_score,
+            locked_decisions=list(case.locked_decisions),
+            blind_spots_accepted=list(case.blind_spots),
+            vulnerabilities_accepted_risk=list(case.structural_vulnerabilities),
+            session_urls={"Origin": origin_url, "Partner": partner_url},
+            third_party_log=[item.to_dict() for item in case.third_party_log],
+        )
+
+
+@dataclass
+class InterruptionRecovery:
+    phase: Phase
+    last_section: str
+    decision_state: SessionStatus
+    partial_state: Dict[str, Any]
+    foundation_score: int | None = None
+
+    def options(self) -> List[str]:
+        return ["A) Continue", "B) Restart Phase", "C) Next round"]
+
+
+@dataclass
+class VerificationChecklist:
+    pre_session: List[str]
+    phase_0: List[str]
+    contract: List[str]
+    truth: List[str]
+    limits: List[str]
+    validation: List[str]
+
+    @classmethod
+    def run(cls, case: DecisionCase, *, packet: str = "") -> "VerificationChecklist":
+        return cls(
+            pre_session=[
+                "Context check executed" if case.context_check else "MISSING context check",
+                "Model parity gate passed" if case.model_parity and case.model_parity.delta != "SIGNIFICANT" else "MISSING model parity pass",
+            ],
+            phase_0=[
+                "Foundation score present" if case.foundation_score is not None else "MISSING foundation score",
+                "Foundation >=70" if (case.foundation_score or 0) >= 70 else "REFRAME required",
+                "Devil's advocate complete" if case.devil_advocate_rounds else "MISSING devil's advocate",
+            ],
+            contract=[
+                "Payload envelope valid" if packet and validate_payload_envelope(packet) else "MISSING valid payload envelope",
+                "State snapshot present" if case.state_snapshots else "MISSING state snapshot",
+                "VCL present" if case.vcl_diagnoses else "MISSING VCL diagnosis",
+            ],
+            truth=[
+                "Unknowns carried" if case.dossier and case.dossier.unknowns else "MISSING unknowns",
+                "Structural vulnerabilities carried" if case.structural_vulnerabilities else "MISSING structural vulnerabilities",
+            ],
+            limits=[
+                "Within max rounds" if case.current_round <= MAX_ROUNDS else "ROUND_LIMIT_EXCEEDED",
+                "ASCII packet" if not packet or not require_ascii(packet) else "NON_ASCII packet",
+            ],
+            validation=[
+                "Third-party validation present" if case.third_party_log else "PENDING third-party validation",
+                "Locked only after validation" if case.status != SessionStatus.LOCKED or case.third_party_log else "LOCKED without validation",
+            ],
+        )
+
+    def failures(self) -> List[str]:
+        all_items = self.pre_session + self.phase_0 + self.contract + self.truth + self.limits + self.validation
+        return [item for item in all_items if item.startswith(("MISSING", "REFRAME", "ROUND_LIMIT", "NON_ASCII", "PENDING", "LOCKED"))]
+
+
+def require_ascii(text: str) -> List[str]:
+    try:
+        text.encode("ascii")
+    except UnicodeEncodeError:
+        return ["payload must be ASCII only"]
+    return []
+

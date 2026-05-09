@@ -1,0 +1,463 @@
+===== ***REDACTED_PATH***/convergence-cfo-ref/tests/test_cfo_os.py =====
+"""Smoke tests for the Multi-Agent CFO Operating System."""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+from cme.cfo_os import (
+    BoardBrief,
+    CFOOperatingSystem,
+    CFOTaskType,
+    ForecastBrief,
+    InvestmentBrief,
+)
+from cme.cfo_os.artifacts import BoardOutput, ForecastPack, InvestmentCaseMemo
+from cme.chp.models import SessionStatus
+from demo import ComplianceAgent, FinanceAgent, StrategyAgent
+
+
+def _cfo_os() -> CFOOperatingSystem:
+    return CFOOperatingSystem(
+        agents=[FinanceAgent(), StrategyAgent(), ComplianceAgent()],
+        company_name="Acme",
+    )
+
+
+def test_investment_case_runs_three_agents_and_advances_lock():
+    cfo = _cfo_os()
+    brief = InvestmentBrief(
+        title="Fund enterprise tier",
+        company="Acme",
+        problem="Should we fund a dedicated enterprise tier this quarter?",
+        investment_amount_usd=2_500_000,
+        expected_payback_months=14,
+        minimum_runway_months=12,
+        current_runway_months=18,
+        expected_upside=["Higher ACV"],
+        key_risks=["Adoption lag"],
+    )
+    report = cfo.run(brief)
+
+    assert report.brief.task_type == CFOTaskType.INVESTMENT_CASE
+    assert isinstance(report.artifact, InvestmentCaseMemo)
+    assert {t.agent for t in report.turns} == {"finance", "strategy", "compliance"}
+    assert report.case.foundation_score and report.case.foundation_score >= 70
+    assert report.case.status == SessionStatus.PROVISIONAL_LOCK
+    assert "BEGIN_PAYLOAD" in report.initial_packet
+    assert report.audit.entries  # at least one provenance entry
+
+
+def test_forecast_brief_produces_forecast_pack():
+    cfo = _cfo_os()
+    brief = ForecastBrief(
+        title="FY26 plan",
+        company="Acme",
+        problem="Build the FY26 driver-based plan.",
+        base_revenue_usd=20_000_000,
+        base_opex_usd=15_000_000,
+        growth_assumption_pct=0.30,
+        churn_assumption_pct=0.08,
+    )
+    report = cfo.run(brief)
+    assert isinstance(report.artifact, ForecastPack)
+    assert report.case.domain == "forecast"
+    rendered = report.artifact.render()
+    assert "Driver Registry" in rendered
+    assert "Stress Views" in rendered
+
+
+def test_board_brief_produces_board_output_with_options():
+    cfo = _cfo_os()
+    brief = BoardBrief(
+        title="Q3 board approval",
+        company="Acme",
+        problem="Approve the enterprise expansion plan.",
+        options=["Approve", "Defer", "Reject"],
+        recommended_option_index=0,
+        open_questions=["Pipeline confidence?"],
+        strategic_risks=["Adoption ramp"],
+    )
+    report = cfo.run(brief)
+    assert isinstance(report.artifact, BoardOutput)
+    assert report.case.domain == "board_decision"
+    rendered = report.artifact.render()
+    assert "(recommended) 1. Approve" in rendered
+    assert "Open Questions" in rendered
+
+
+def test_lock_progression_via_third_party_validation():
+    cfo = _cfo_os()
+    brief = InvestmentBrief(
+        title="Fund platform team",
+        company="Acme",
+        problem="Should we fund a platform team next quarter?",
+        investment_amount_usd=1_500_000,
+        expected_payback_months=12,
+        minimum_runway_months=12,
+        current_runway_months=18,
+    )
+    report = cfo.run(brief)
+    assert report.case.status == SessionStatus.PROVISIONAL_LOCK
+
+    case = cfo.lock(
+        report.case.decision_id,
+        validator="fresh_instance",
+        item="Investment spec v1",
+        rationale="Spec coheres; flip criteria explicit.",
+        confirm=True,
+    )
+    assert case.status == SessionStatus.LOCKED
+    assert "Investment spec v1" in case.locked_decisions
+    assert len(case.third_party_log) == 1
+
+
+def test_audit_trail_links_each_agent_to_expansion_steps():
+    cfo = _cfo_os()
+    brief = InvestmentBrief(
+        title="Audit smoke",
+        company="Acme",
+        problem="Audit smoke test.",
+        investment_amount_usd=1_000_000,
+        expected_payback_months=10,
+        minimum_runway_months=12,
+        current_runway_months=20,
+    )
+    report = cfo.run(brief)
+    agents_in_audit = {e.agent for e in report.audit.entries}
+    assert agents_in_audit == {"finance", "strategy", "compliance"}
+    # Each agent contributes at least an expansion step + a final recommendation entry.
+    for agent in agents_in_audit:
+        agent_entries = [e for e in report.audit.entries if e.agent == agent]
+        assert len(agent_entries) >= 2
+    assert any("recommendation" == e.claim for e in report.audit.entries)
+    assert report.audit.foundation_findings  # CHP findings recorded
+
+===== ***REDACTED_PATH***/convergence-cfo-ref/tests/test_chp_basics.py =====
+"""Basic tests for the Consensus Hardening Protocol scaffold."""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+from cme.chp import (  # noqa: E402
+    ContextCheck,
+    DecisionCase,
+    DecisionRegistry,
+    Dossier,
+    Phase,
+    RoundRecord,
+    SessionStatus,
+    ThirdPartyValidation,
+    ValidationResult,
+    assess_model_parity,
+    apply_third_party_validation,
+    build_payload_envelope,
+    evaluate_phase_gate,
+    evaluate_r0_gate,
+    payload_echo_confirmed,
+    validate_payload_envelope,
+)
+
+
+def test_payload_envelope_roundtrip():
+    envelope = build_payload_envelope("hello world", route="RX", payload_id="ABC123")
+    rendered = envelope.render()
+    assert validate_payload_envelope(rendered)
+    assert payload_echo_confirmed("RX", "ABC123", "[RX] [ABC123] CONFIRMED")
+
+
+def test_model_parity_detects_large_gap():
+    parity = assess_model_parity("gpt-5.4", "haiku")
+    assert parity.delta == "SIGNIFICANT"
+
+
+def test_r0_gate_halts_on_fatal():
+    gate = evaluate_r0_gate(solvable=True, scoped=False, valid=True, worth_it=True)
+    assert gate.verdict.value == "HALT"
+    assert gate.results["Scoped"] == "FATAL"
+
+
+def test_phase_gate_fails_after_round_two_without_lock():
+    verdict = evaluate_phase_gate(3, SessionStatus.EXPLORING)
+    assert verdict.value == "PHASE_GATE_FAIL"
+
+
+def test_registry_and_validation_promote_lock():
+    case = DecisionCase(
+        decision_id="dec-1",
+        title="Fund enterprise tier",
+        domain="capital_allocation",
+        created_at="2026-04-25T10:00:00Z",
+        owner="cfo",
+        status=SessionStatus.PROVISIONAL_LOCK,
+        dossier=Dossier(core_problem="Should we fund the tier?", goal_state=["grow"], current_state=["cash"], constraints=["runway"], scope=["decision"]),
+        context_check=ContextCheck(memory_tools="AVAILABLE"),
+    )
+    case.add_round(RoundRecord(decision_id="dec-1", phase=Phase.SPEC, round_number=2, payload_id="ABC123"))
+    registry = DecisionRegistry()
+    registry.add(case)
+
+    status = apply_third_party_validation(
+        case,
+        ThirdPartyValidation(
+            validator="fresh_instance",
+            item="Investment spec v1",
+            challenge="downside stress",
+            result=ValidationResult.CONFIRM,
+            rationale="holds up under challenge",
+        ),
+    )
+
+    assert status == SessionStatus.LOCKED
+    assert registry.get("dec-1") is case
+    assert "Investment spec v1" in case.locked_decisions
+
+===== ***REDACTED_PATH***/convergence-cfo-ref/tests/test_chp_capital_flow.py =====
+"""End-to-end skeleton tests for CHP capital allocation sessions."""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+from cme.chp import CHPOrchestrator  # noqa: E402
+from cme.finance import CapitalAllocationInput, build_capital_allocation_case  # noqa: E402
+
+
+def test_capital_allocation_builder_and_orchestrator():
+    case, disclosure, attack = build_capital_allocation_case(
+        CapitalAllocationInput(
+            title="Fund enterprise workflow",
+            company="Acme",
+            proposal_summary="Should we fund a new enterprise workflow team this quarter?",
+            investment_amount_usd=2_500_000,
+            expected_payback_months=14,
+            minimum_runway_months=12,
+            current_runway_months=18,
+            strategic_priorities=["Expand enterprise ARR", "Preserve capital discipline"],
+            key_risks=["Adoption lag", "Implementation complexity"],
+            expected_upside=["Higher ACV", "Lower churn in strategic accounts"],
+        )
+    )
+    orch = CHPOrchestrator()
+    report = orch.run_initial_session(
+        case=case,
+        foundation_disclosure=disclosure,
+        foundation_attack=attack,
+    )
+
+    assert report.case.decision_id.startswith("cap-")
+    assert report.case.context_check is not None
+    assert report.case.model_parity is not None
+    assert report.case.foundation_score == attack.foundation_score
+    assert "BEGIN_PAYLOAD" in report.initial_packet
+    assert report.case.status.value in {"EXPLORING", "REFRAME_REQUIRED", "HALT"}
+
+===== ***REDACTED_PATH***/convergence-cfo-ref/tests/test_chp_registry_cli_flow.py =====
+"""Persistence-oriented tests for CHP registry-backed flows."""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+from cme.chp import (  # noqa: E402
+    CHPOrchestrator,
+    DecisionRegistry,
+    Phase,
+    ThirdPartyValidation,
+    ValidationResult,
+)
+from cme.finance import CapitalAllocationInput, build_capital_allocation_case  # noqa: E402
+
+
+def test_registry_persists_received_packet_and_validation(tmp_path):
+    registry_path = tmp_path / "registry.json"
+    registry = DecisionRegistry()
+    orch = CHPOrchestrator(registry=registry)
+    case, disclosure, attack = build_capital_allocation_case(
+        CapitalAllocationInput(
+            title="Fund enterprise workflow",
+            company="Acme",
+            proposal_summary="Should we fund a new enterprise workflow team this quarter?",
+            investment_amount_usd=2_500_000,
+            expected_payback_months=14,
+            minimum_runway_months=12,
+            current_runway_months=18,
+            strategic_priorities=["Expand enterprise ARR"],
+            key_risks=["Adoption lag"],
+            expected_upside=["Higher ACV"],
+        )
+    )
+    report = orch.run_initial_session(case=case, foundation_disclosure=disclosure, foundation_attack=attack)
+    registry.save(registry_path)
+
+    loaded = DecisionRegistry.load(registry_path)
+    orch2 = CHPOrchestrator(registry=loaded)
+    packet = "BEGIN_PAYLOAD [RX] [ABC123]\npartner body\nEND_PAYLOAD [RX] [ABC123]"
+    updated = orch2.receive_partner_packet(
+        decision_id=report.case.decision_id,
+        partner_packet=packet,
+        phase=Phase.SPEC,
+        round_number=1,
+        payload_echo="[RX] [ABC123] CONFIRMED",
+        snapshot_status="PROVISIONAL_LOCK",
+    )
+    assert updated.current_round == 1
+    assert updated.rounds[-1].payload_id == "ABC123"
+
+    orch2.apply_validation(
+        updated.decision_id,
+        ThirdPartyValidation(
+            validator="fresh_instance",
+            item="Investment spec v1",
+            challenge="downside stress",
+            result=ValidationResult.CONFIRM,
+            rationale="still coherent",
+        ),
+    )
+    loaded.save(registry_path)
+
+    reloaded = DecisionRegistry.load(registry_path)
+    final = reloaded.get(updated.decision_id)
+    assert final is not None
+    assert final.status.value == "LOCKED"
+    assert "Investment spec v1" in final.locked_decisions
+
+===== ***REDACTED_PATH***/convergence-cfo-ref/tests/test_mesh.py =====
+"""Smoke tests exercising the full pipeline without any external services."""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+from cme.bridge import BridgeFramework, Consequences, EntryPoint, WhyLink  # noqa: E402
+from cme.context import ContextEngine, Entity  # noqa: E402
+from cme.orchestrator import EnterpriseOrchestrator  # noqa: E402
+from cme.playbook import Bullet, DeltaOp, Playbook  # noqa: E402
+from cme.protocol import (  # noqa: E402
+    CognitiveMeshProtocol,
+    CompressionStep,
+    ConfidenceLevel,
+    ExpansionStep,
+    ProblemType,
+    detect_hallucination_risk,
+)
+from demo import ComplianceAgent, FinanceAgent, StrategyAgent  # noqa: E402
+
+
+def test_protocol_renders_full_trace():
+    proto = CognitiveMeshProtocol()
+
+    def _expand(p, ctx):
+        return [
+            ExpansionStep(label="Reframe", content="x"),
+            ExpansionStep(label="Constraints", content="y"),
+        ]
+
+    def _compress(p, exp, ctx):
+        return (
+            "final",
+            [CompressionStep(label="Integrate", content="z")],
+            ConfidenceLevel.HIGH,
+            "nothing changes unless Q1 slips",
+        )
+
+    trace = proto.run("plan the quarter", expansion_fn=_expand, compression_fn=_compress)
+    assert trace.problem_type in ProblemType
+    assert "Final Recommendation" in trace.render()
+    assert trace.confidence == ConfidenceLevel.HIGH
+
+
+def test_hallucination_risk_detector():
+    assert detect_hallucination_risk("studies show 42% of users prefer X") is not None
+    assert detect_hallucination_risk("The team shipped the feature on Tuesday.") is None
+
+
+def test_playbook_add_and_dedupe():
+    pb = Playbook("t")
+    log1 = pb.apply(
+        [DeltaOp(type="ADD", section="strategies_and_hard_rules", content="always name the owner")]
+    )
+    log2 = pb.apply(
+        [DeltaOp(type="ADD", section="strategies_and_hard_rules", content="always name the owner")]
+    )
+    assert any(l.startswith("ADD") for l in log1)
+    assert any(l.startswith("DEDUP") for l in log2)
+    assert len(pb.bullets) == 1
+
+
+def test_playbook_refine_prunes_low_utility():
+    pb = Playbook("t")
+    pb.bullets["shr-00001"] = Bullet(
+        id="shr-00001", section="strategies_and_hard_rules", content="bad", harmful=5, helpful=1
+    )
+    pb.refine()
+    assert "shr-00001" not in pb.bullets
+
+
+def test_context_engine_selects_relevant():
+    ctx = ContextEngine()
+    ctx.upsert_entity(Entity(id="org", type="org", attributes={"name": "Acme"}))
+    ctx.write("budget ceiling is 4M for the fiscal year", source_agent="finance", importance=0.8)
+    ctx.write("sky is blue", source_agent="weather", importance=0.2)
+    hits = ctx.select("what is our fiscal year budget?", k=2)
+    assert any("budget" in e.content for e in hits)
+
+
+def test_bridge_builds_statement_with_completeness():
+    bridge = BridgeFramework()
+    stmt = bridge.build_statement(
+        entry_point=EntryPoint.PROBLEM,
+        observable_tension="Each quarter, every product team already rebuilds the same onboarding survey.",
+        whys=[
+            WhyLink("why rebuild?", "no shared template"),
+            WhyLink("why no template?", "no owner"),
+            WhyLink("why no owner?", "missing in the RACI"),
+        ],
+        consequences=Consequences(
+            strategic="slower launches",
+            cultural="teams lose trust in shared infra",
+            financial="~$200k of duplicated engineering/quarter",
+        ),
+        strategic_connection="Directly blocks the FY26 'one-platform' mandate.",
+    )
+    check = stmt.completeness_report()
+    assert check["initiating_moment_specific"]
+    assert check["root_cause_structural"]
+    assert check["consequences_visible"]
+    assert check["strategic_link"]
+
+
+def test_orchestrator_end_to_end_produces_workflow():
+    agents = [FinanceAgent(), StrategyAgent(), ComplianceAgent()]
+    orch = EnterpriseOrchestrator(agents=agents)
+    report = orch.orchestrate(
+        "Should we invest in a new enterprise tier this quarter?",
+        entry_point=EntryPoint.PROBLEM,
+    )
+    assert {t.agent for t in report.turns} == {"finance", "strategy", "compliance"}
+    # Strategy depends on budget_envelope (produced by finance) -> must run after finance
+    names = [t.agent for t in report.turns]
+    assert names.index("finance") < names.index("strategy")
+    assert names.index("strategy") < names.index("compliance")
+    assert len(report.workflow.steps) == 3
+    # Bridge dependency inference: later steps should list earlier producer ids
+    strategy_step = next(s for s in report.workflow.steps if s.owner == "strategy")
+    assert strategy_step.depends_on  # non-empty
+
+
+if __name__ == "__main__":  # pragma: no cover
+    import pytest
+
+    raise SystemExit(pytest.main([__file__, "-v"]))
+

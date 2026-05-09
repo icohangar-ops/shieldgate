@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://medium.com/@hendroabdulharis93/portaldot-network-a-new-bridge-towards-a-green-and-trusted-digital-civilization-459036e62d52",
+    "name": "Portaldot Network: A New Bridge Towards a Green and",
+    "snippet": "15 Dec 2025 — Utility Token: POT Portaldot has a native token calledPOT . Based on market data from Bitget, POT's price at the time of writing is ...",
+    "host_name": "medium.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.polkadot.com/chain-interactions",
+    "name": "Chain Interactions Overview | Polkadot Developer Docs",
+    "snippet": "14 Jan 2026 — Learn how to query data, send transactions, enable cross- chain communication, and manage accounts across the Polkadot ecosystem.",
+    "host_name": "docs.polkadot.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.binance.com/ar/square/post/9992082691826",
+    "name": "What Is Substrate in Polkadot (DOT)?",
+    "snippet": "26 Jun 2024 — Substrate is the SDK that allows developers to build parachains , while Polkadot allows the chains to be secured and communicate with one another ...",
+    "host_name": "www.binance.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://support.polkadot.network/support/solutions/articles/65000110873-glossary",
+    "name": "Glossary",
+    "snippet": "4 Feb 2026 — These tokens can be DOT , KSM, or any other token on a Substrate chain because an account can be used on almost all chains built on Substrate .",
+    "host_name": "support.polkadot.network",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.risein.com/courses/polkadot-fundamentals-and-substrate-development/deep-dive-substrate",
+    "name": "Deep dive substrate | Learn everything about Polkadot and",
+    "snippet": "In this chapter, we will learn about node types, runtime, transactions, consensus and the default consensus modes.",
+    "host_name": "www.risein.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.linkedin.com/pulse/polkadot-architecture-introduction-substrate-vishal-ranaut",
+    "name": "The Polkadot architecture and introduction to the Substrate",
+    "snippet": "Parachains are custom, project-specific blockchains linked to the Polkadot ( DOT ) and Kusama (KSM) networks. Users can utilize them for ...",
+    "host_name": "www.linkedin.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://trustwallet.com/blog/web3/polkadot-ecosystem-explained",
+    "name": "The Polkadot Ecosystem: Explained",
+    "snippet": "2 Jan 2025 — Substrate is the primary framework for building blockchains in the Polkadot ecosystem . Substrate enables developers to create custom blockchains ...",
+    "host_name": "trustwallet.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.coinfabrik.com/blog/polkadot-and-substrate-a-promising-yet-challenging-blockchain-technology",
+    "name": "Polkadot and Substrate: a Promising yet Challenging",
+    "snippet": "23 May 2019 — The Polkadot protocol allows arbitrary fee-less message passing through the relay chain between all blockchains in the ecosystem, be they ...",
+    "host_name": "www.coinfabrik.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=-ttmm8gYS04",
+    "name": "5.1 Introduction to Substrate - Substrate by Kian @PBA4",
+    "snippet": "Substrate Module: Introduction to Substrate Date: January 17, 2024 Lecture slides: https:// polkadot -block.",
+    "host_name": "www.youtube.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://polkadot.js.org/apps",
+    "name": "Polkadot/Substrate Portal",
+    "snippet": "Waiting to establish a connection with the remote endpoint. You are connected to the development instance of the UI. For a fully decentralized experience, ...",
+    "host_name": "polkadot.js.org",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]
