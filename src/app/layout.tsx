@@ -14,16 +14,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Convergence — Post-Merger Integration Intelligence Platform",
-  description: "CHP-governed multi-agent Convergence for M&A finance integration. Built on DigitalOcean: App Platform + Managed PostgreSQL + Spaces.",
-  keywords: ["Convergence", "M&A", "PMI", "Integration", "CHP", "CFO", "DigitalOcean", "multi-agent"],
+  title: "ShieldGate — Least-Privilege Agentic SOC",
+  description: "AuthZed-powered authorization gateway for Splunk AI agents. Every tool call, every query, every access — governed by least-privilege policies.",
+  keywords: ["AuthZed", "Splunk", "SOC", "AI Agent", "Zero Trust", "Least Privilege", "MCP"],
   authors: [{ name: "cubiczan" }],
   icons: {
     icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
   },
   openGraph: {
-    title: "Convergence — PMI Intelligence Platform",
-    description: "Post-Merger Integration Intelligence Platform",
+    title: "ShieldGate — Least-Privilege Agentic SOC",
+    description: "AuthZed x Splunk: Zero-trust authorization for AI-powered security operations",
     type: "website",
   },
 };
