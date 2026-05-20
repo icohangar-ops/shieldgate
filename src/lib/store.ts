@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { UserRole } from '@/lib/authz';
+import type { UserRole } from '@/lib/authz-types';
 
 interface Incident {
   id: string;

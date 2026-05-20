@@ -15,12 +15,11 @@ export async function POST(request: Request) {
     let decision;
 
     if (permissionType === 'tool') {
-      // Extract index from resource if present (e.g., "index:security")
       const index = resource?.startsWith('index:') ? resource.slice(6) : undefined;
-      decision = checkToolPermission(role, action, index);
+      decision = await checkToolPermission(role, action, index);
     } else {
       const index = resource || '';
-      decision = checkIndexPermission(role, index, (action as 'read' | 'query') || 'read');
+      decision = await checkIndexPermission(role, index, (action as 'read' | 'query') || 'read');
     }
 
     // Log the decision to the audit trail

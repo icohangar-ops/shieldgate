@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { SPLUNK_INDEXES, getIndexDetail } from '@/lib/splunk-sim';
+import { isSplunkConfigured, getSplunkIndexes, getSplunkIndexDetail } from '@/lib/splunk-client';
 import { checkToolPermission, type UserRole } from '@/lib/authz';
 
 export async function GET(request: Request) {
@@ -12,7 +13,7 @@ export async function GET(request: Request) {
   }
 
   // Check tool permission
-  const toolPerm = checkToolPermission(role, 'splunk_get_indexes');
+  const toolPerm = await checkToolPermission(role, 'splunk_get_indexes');
   if (!toolPerm.allowed) {
     return NextResponse.json({
       authorized: false,
@@ -23,7 +24,7 @@ export async function GET(request: Request) {
 
   // Check index detail permission
   if (name) {
-    const detailPerm = checkToolPermission(role, 'splunk_get_index_detail');
+    const detailPerm = await checkToolPermission(role, 'splunk_get_index_detail');
     if (!detailPerm.allowed) {
       return NextResponse.json({
         authorized: false,
@@ -31,11 +32,35 @@ export async function GET(request: Request) {
         reason: detailPerm.reason,
       }, { status: 403 });
     }
+
+    if (isSplunkConfigured()) {
+      try {
+        const detail = await getSplunkIndexDetail(name);
+        if (!detail) {
+          return NextResponse.json({ error: 'Index not found' }, { status: 404 });
+        }
+        return NextResponse.json({ authorized: true, index: detail });
+      } catch {
+        const detail = getIndexDetail(name);
+        if (!detail) return NextResponse.json({ error: 'Index not found' }, { status: 404 });
+        return NextResponse.json({ authorized: true, index: detail });
+      }
+    }
+
     const detail = getIndexDetail(name);
     if (!detail) {
       return NextResponse.json({ error: 'Index not found' }, { status: 404 });
     }
     return NextResponse.json({ authorized: true, index: detail });
+  }
+
+  if (isSplunkConfigured()) {
+    try {
+      const indexes = await getSplunkIndexes();
+      return NextResponse.json({ authorized: true, indexes });
+    } catch {
+      return NextResponse.json({ authorized: true, indexes: SPLUNK_INDEXES });
+    }
   }
 
   return NextResponse.json({ authorized: true, indexes: SPLUNK_INDEXES });

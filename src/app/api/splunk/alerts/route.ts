@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { SPLUNK_ALERTS } from '@/lib/splunk-sim';
+import { isSplunkConfigured, getSplunkAlerts } from '@/lib/splunk-client';
 import { checkToolPermission, type UserRole } from '@/lib/authz';
 
 export async function GET(request: Request) {
@@ -10,7 +11,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Role parameter required' }, { status: 400 });
   }
 
-  const perm = checkToolPermission(role, 'splunk_get_alerts');
+  const perm = await checkToolPermission(role, 'splunk_get_alerts');
   if (!perm.allowed) {
     return NextResponse.json({
       authorized: false,
@@ -19,10 +20,20 @@ export async function GET(request: Request) {
     }, { status: 403 });
   }
 
+  let alerts;
+  if (isSplunkConfigured()) {
+    try {
+      alerts = await getSplunkAlerts();
+    } catch {
+      alerts = SPLUNK_ALERTS;
+    }
+  } else {
+    alerts = SPLUNK_ALERTS;
+  }
+
   // SRE only sees observability alerts
-  let filtered = SPLUNK_ALERTS;
   if (role === 'sre') {
-    filtered = SPLUNK_ALERTS.filter(a =>
+    alerts = alerts.filter(a =>
       a.name.toLowerCase().includes('k8s') ||
       a.name.toLowerCase().includes('cpu') ||
       a.name.toLowerCase().includes('oom') ||
@@ -33,5 +44,5 @@ export async function GET(request: Request) {
     );
   }
 
-  return NextResponse.json({ authorized: true, alerts: filtered });
+  return NextResponse.json({ authorized: true, alerts });
 }

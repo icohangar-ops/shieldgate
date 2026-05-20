@@ -2,8 +2,8 @@
 
 import { useEffect, useCallback, useRef, useState } from 'react';
 import { useStore } from '@/lib/store';
-import type { UserRole } from '@/lib/authz';
-import { ROLES } from '@/lib/authz';
+import type { UserRole } from '@/lib/authz-types';
+import { ROLES } from '@/lib/authz-types';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { simulateSplunkQuery, redactEvents } from '@/lib/splunk-sim';
+import { isSplunkConfigured, runSplunkQuery } from '@/lib/splunk-client';
 import { checkToolPermission, type UserRole } from '@/lib/authz';
 
 export async function POST(request: Request) {
@@ -12,7 +13,7 @@ export async function POST(request: Request) {
     }
 
     // Step 1: AuthZed permission check
-    const permission = checkToolPermission(role, 'splunk_run_query', index);
+    const permission = await checkToolPermission(role, 'splunk_run_query', index);
     if (!permission.allowed) {
       return NextResponse.json({
         authorized: false,
@@ -22,8 +23,18 @@ export async function POST(request: Request) {
       }, { status: 403 });
     }
 
-    // Step 2: Execute Splunk query (simulated)
-    let result = simulateSplunkQuery(spl, index);
+    // Step 2: Execute query (real Splunk or simulation)
+    let result;
+    if (isSplunkConfigured()) {
+      try {
+        result = await runSplunkQuery(spl, index);
+      } catch (err) {
+        console.error('[Splunk] Real query failed, falling back to simulation:', err);
+        result = simulateSplunkQuery(spl, index);
+      }
+    } else {
+      result = simulateSplunkQuery(spl, index);
+    }
 
     // Step 3: Apply role-based data filtering
     if (role === 'contractor') {
@@ -32,7 +43,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       authorized: true,
-      permission: permission,
+      permission,
       sid: result.sid,
       results: result.results,
       eventCount: result.eventCount,
