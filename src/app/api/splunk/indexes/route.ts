@@ -2,15 +2,12 @@ import { NextResponse } from 'next/server';
 import { SPLUNK_INDEXES, getIndexDetail } from '@/lib/splunk-sim';
 import { isSplunkConfigured, getSplunkIndexes, getSplunkIndexDetail } from '@/lib/splunk-client';
 import { checkToolPermission, type UserRole } from '@/lib/authz';
+import { withAuth, type AuthenticatedRequest } from '@/lib/auth-middleware';
 
-export async function GET(request: Request) {
+export const GET = withAuth(async (request: AuthenticatedRequest) => {
   const { searchParams } = new URL(request.url);
-  const role = searchParams.get('role') as UserRole;
+  const role = request.authRole;
   const name = searchParams.get('name');
-
-  if (!role) {
-    return NextResponse.json({ error: 'Role parameter required' }, { status: 400 });
-  }
 
   // Check tool permission
   const toolPerm = await checkToolPermission(role, 'splunk_get_indexes');
@@ -64,4 +61,4 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({ authorized: true, indexes: SPLUNK_INDEXES });
-}
+});

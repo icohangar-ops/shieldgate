@@ -1,16 +1,17 @@
 import { NextResponse } from 'next/server';
-import { checkToolPermission, checkIndexPermission, getRolePermissions, type UserRole } from '@/lib/authz';
+import { checkToolPermission, checkIndexPermission, getRolePermissions } from '@/lib/authz';
 import { db } from '@/lib/db';
+import { withAuth, type AuthenticatedRequest } from '@/lib/auth-middleware';
 
-export async function POST(request: Request) {
+export const POST = withAuth(async (request: AuthenticatedRequest) => {
   try {
     const body = await request.json();
-    const { role, action, resource, permissionType } = body as {
-      role: UserRole;
+    const { action, resource, permissionType } = body as {
       action: string;
       resource?: string;
       permissionType: 'tool' | 'index';
     };
+    const role = request.authRole;
 
     let decision;
 
@@ -43,16 +44,11 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json({ error: 'Permission check failed' }, { status: 500 });
   }
-}
+});
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const role = searchParams.get('role') as UserRole;
-
-  if (!role) {
-    return NextResponse.json({ error: 'Role parameter required' }, { status: 400 });
-  }
+export const GET = withAuth(async (request: AuthenticatedRequest) => {
+  const role = request.authRole;
 
   const permissions = getRolePermissions(role);
   return NextResponse.json(permissions);
-}
+});

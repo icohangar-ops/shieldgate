@@ -1,15 +1,17 @@
 import { NextResponse } from 'next/server';
 import { simulateSplunkQuery, redactEvents } from '@/lib/splunk-sim';
 import { isSplunkConfigured, runSplunkQuery } from '@/lib/splunk-client';
-import { checkToolPermission, type UserRole } from '@/lib/authz';
+import { checkToolPermission } from '@/lib/authz';
+import { withAuth, type AuthenticatedRequest } from '@/lib/auth-middleware';
 
-export async function POST(request: Request) {
+export const POST = withAuth(async (request: AuthenticatedRequest) => {
   try {
     const body = await request.json();
-    const { spl, index, role } = body as { spl: string; index?: string; role: UserRole };
+    const { spl, index } = body as { spl: string; index?: string; role?: string };
+    const role = request.authRole;
 
-    if (!spl || !role) {
-      return NextResponse.json({ error: 'spl and role are required' }, { status: 400 });
+    if (!spl) {
+      return NextResponse.json({ error: 'spl is required' }, { status: 400 });
     }
 
     // Step 1: AuthZed permission check
@@ -53,4 +55,4 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json({ error: 'Query execution failed' }, { status: 500 });
   }
-}
+});

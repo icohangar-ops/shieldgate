@@ -1,15 +1,11 @@
 import { NextResponse } from 'next/server';
 import { SPLUNK_ALERTS } from '@/lib/splunk-sim';
 import { isSplunkConfigured, getSplunkAlerts } from '@/lib/splunk-client';
-import { checkToolPermission, type UserRole } from '@/lib/authz';
+import { checkToolPermission } from '@/lib/authz';
+import { withAuth, type AuthenticatedRequest } from '@/lib/auth-middleware';
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const role = searchParams.get('role') as UserRole;
-
-  if (!role) {
-    return NextResponse.json({ error: 'Role parameter required' }, { status: 400 });
-  }
+export const GET = withAuth(async (request: AuthenticatedRequest) => {
+  const role = request.authRole;
 
   const perm = await checkToolPermission(role, 'splunk_get_alerts');
   if (!perm.allowed) {
@@ -45,4 +41,4 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({ authorized: true, alerts });
-}
+});

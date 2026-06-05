@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { withAuth, type AuthenticatedRequest } from '@/lib/auth-middleware';
 
 const SYSTEM_PROMPT = `You are an AI SOC (Security Operations Center) incident investigation assistant integrated with Splunk. You help analysts investigate security incidents by:
 1. Summarizing incident details
@@ -18,7 +19,7 @@ async function getAiClient() {
   }
 }
 
-export async function POST(request: Request) {
+export const POST = withAuth(async (request: AuthenticatedRequest) => {
   try {
     const body = await request.json();
     const { messages, incidentContext } = body as {
@@ -62,7 +63,7 @@ export async function POST(request: Request) {
       content: `I'm currently unable to process your request. Based on the incident data, I recommend:\n\n1. Review the raw events in the security index\n2. Check for lateral movement indicators\n3. Correlate with authentication logs\n\nTry running: \`index=security sourcetype=auth | stats count by user, action\`\n\n(Error: ${errorMessage})`,
     });
   }
-}
+});
 
 function generateFallbackResponse(userMsg: string, context?: string): string {
   const lower = userMsg.toLowerCase();

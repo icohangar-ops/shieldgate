@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { withAuth, type AuthenticatedRequest } from '@/lib/auth-middleware';
 
-export async function GET(request: Request) {
+export const GET = withAuth(async (request: AuthenticatedRequest) => {
   const { searchParams } = new URL(request.url);
   const limit = parseInt(searchParams.get('limit') || '50');
-  const role = searchParams.get('role');
+  const role = request.authRole;
 
   const where = role ? { userRole: role } : {};
 
@@ -15,4 +16,4 @@ export async function GET(request: Request) {
   });
 
   return NextResponse.json(logs);
-}
+});

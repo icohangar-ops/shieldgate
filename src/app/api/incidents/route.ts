@@ -1,14 +1,15 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { withAuth, type AuthenticatedRequest } from '@/lib/auth-middleware';
 
-export async function GET() {
+export const GET = withAuth(async (request: AuthenticatedRequest) => {
   const incidents = await db.incident.findMany({
     orderBy: { createdAt: 'desc' },
   });
   return NextResponse.json(incidents);
-}
+});
 
-export async function PATCH(request: Request) {
+export const PATCH = withAuth(async (request: AuthenticatedRequest) => {
   try {
     const body = await request.json();
     const { id, status } = body as { id: string; status: string };
@@ -26,4 +27,4 @@ export async function PATCH(request: Request) {
   } catch (error) {
     return NextResponse.json({ error: 'Failed to update incident' }, { status: 500 });
   }
-}
+});
