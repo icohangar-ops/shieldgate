@@ -23,7 +23,7 @@ export const POST = withAuth(async (request: AuthenticatedRequest) => {
   try {
     const body = await request.json();
     const { messages, incidentContext } = body as {
-      messages: Array<{ role: string; content: string }>;
+      messages: Array<{ role: 'user' | 'system' | 'assistant'; content: string }>;
       incidentContext?: string;
     };
 
@@ -36,7 +36,7 @@ export const POST = withAuth(async (request: AuthenticatedRequest) => {
       : '';
 
     const fullMessages = [
-      { role: 'system', content: SYSTEM_PROMPT + contextMessage },
+      { role: 'system' as const, content: SYSTEM_PROMPT + contextMessage },
       ...messages.map(m => ({ role: m.role, content: m.content })),
     ];
 

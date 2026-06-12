@@ -13,7 +13,8 @@ import { readFileSync } from "fs";
 import { resolve } from "path";
 
 // Load .env.local
-const envPath = resolve(import.meta.dir, "../.env.local");
+// `import.meta.dir` is a Bun-specific extension (this script runs under Bun).
+const envPath = resolve((import.meta as ImportMeta & { dir: string }).dir, "../.env.local");
 try {
   const envContent = readFileSync(envPath, "utf-8");
   for (const line of envContent.split("\n")) {

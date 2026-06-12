@@ -61,7 +61,7 @@ interface ShieldGateState {
 
   // Query results
   queryResults: QueryResult | null;
-  setQueryResults: (results: QueryResult) => void;
+  setQueryResults: (results: QueryResult | null) => void;
 
   // Chat
   chatMessages: ChatMessage[];
