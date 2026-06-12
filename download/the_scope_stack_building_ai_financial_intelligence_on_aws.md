@@ -302,9 +302,9 @@ The immediate roadmap includes:
 
 All three platforms are open source under MIT license:
 
-- **Scope.Sentinel** — [Codeberg](https://codeberg.org/cubiczan/scope-sentinel) | [GitHub](https://github.com/Cubiczan/scope-sentinel)
-- **Scope.Vantage** — [Codeberg](https://codeberg.org/cubiczan/scope-vantage) | [GitHub](https://github.com/Cubiczan/scope-vantage)
-- **Scope.Glacier** — [Codeberg](https://codeberg.org/cubiczan/scope-glacier) | [GitHub](https://github.com/Cubiczan/scope-glacier)
+- **Scope.Sentinel** — [Codeberg](https://codeberg.org/cubiczan/scope-sentinel) | [GitHub](https://github.com/icohangar-ops/scope-sentinel)
+- **Scope.Vantage** — [Codeberg](https://codeberg.org/cubiczan/scope-vantage) | [GitHub](https://github.com/icohangar-ops/scope-vantage)
+- **Scope.Glacier** — [Codeberg](https://codeberg.org/cubiczan/scope-glacier) | [GitHub](https://github.com/icohangar-ops/scope-glacier)
 
 ---
 

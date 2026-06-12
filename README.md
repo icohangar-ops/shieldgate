@@ -142,7 +142,7 @@ definition incident {
 
 ```bash
 # Clone the repo
-git clone https://github.com/zan-maker/shieldgate.git
+git clone https://github.com/icohangar-ops/shieldgate.git
 cd shieldgate
 
 # Install dependencies

@@ -165,7 +165,7 @@ On-chain registry of authorized AI verification agents.
 ## Quick Start
 
 ```bash
-git clone https://github.com/Cubiczan/greenverify-ai.git
+git clone https://github.com/icohangar-ops/greenverify-ai.git
 cd greenverify-ai
 
 # Python backend

@@ -187,6 +187,6 @@ Work Log:
 
 Stage Summary:
 - All 3 remotes updated with enhanced README + 5 new diagrams
-- GitHub: https://github.com/Cubiczan/closed-loop-finance
-- GitHub: https://github.com/zan-maker/closed-loop-finance
+- GitHub: https://github.com/icohangar-ops/closed-loop-finance
+- GitHub: https://github.com/icohangar-ops/closed-loop-finance
 - Codeberg: https://codeberg.org/cubiczan/closed-loop-finance

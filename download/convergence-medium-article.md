@@ -236,7 +236,7 @@ I'm also planning to add WebSocket-based real-time updates to the dashboard, so 
 
 ---
 
-**Convergence** is open source and available on [GitHub](https://github.com/Cubiczan/convergence) and [Codeberg](https://codeberg.org/cubiczan/convergence). The dashboard demo video and screenshots are in the repository.
+**Convergence** is open source and available on [GitHub](https://github.com/icohangar-ops/convergence) and [Codeberg](https://codeberg.org/cubiczan/convergence). The dashboard demo video and screenshots are in the repository.
 
 If you're building M&A integration tooling, or just thinking about how multi-agent AI can be governed in high-stakes domains, I'd love to hear from you.
 
