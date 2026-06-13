@@ -13,10 +13,10 @@ import httpx
 
 
 # Default API keys and endpoints (China primary, Singapore backup)
-_CHINA_API_KEY = "sk-6daeb1e1fa5349df9ab31ab1b76657a4"
+_CHINA_API_KEY = os.environ.get("QWEN_API_KEY", "")
 _CHINA_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
-_SG_API_KEY = "sk-a6e8ffd8f6ed4afe8f77440d6ad3dfff"
+_SG_API_KEY = os.environ.get("QWEN_BACKUP_API_KEY", "")
 _SG_BASE_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
 
 _DEFAULT_MODEL = "qwen3.6-flash"
