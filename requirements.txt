@@ -1,0 +1,5 @@
+# CHP (Consensus Hardening Protocol) — HITL gate reference implementation.
+# The TypeScript port in src/lib/chp.ts is the operational gate; this pins the
+# canonical Python package used by the erp-control-plane reference tooling
+# (pure Python, no transitive dependencies).
+consensus-hardening-protocol==0.1.1

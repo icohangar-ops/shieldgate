@@ -118,6 +118,18 @@ definition incident {
 - Raw log lines sanitized before display
 - No code changes needed — handled at the authorization layer
 
+### 🛡️ Consensus Hardening Protocol (CHP) — Human Lock
+
+Consequential SOC actions pass through a CHP gate (`src/lib/chp.ts`) — the same HITL pattern proven in the ERP control plane — before anything executes:
+
+- **R0 gate (before the action)** — every Splunk query and incident transition is checked: *Solvable* (grounded in alert/incident state), *Scoped* (pinned index, allowlisted transition), *Valid* (known index, authorized role), *Worth_it* (investigative only). Any FATAL halts the action with a mechanical reason — the model is never asked, it is refused.
+- **Deterministic foundation scoring (after execution)** — guardrails 40 + bounded result 30 + state corroboration 30 = 100; the general floor is 70. Sub-floor executions are withheld pending human validation. No SOC golden source exists, so state assertions serve as the parity substitute.
+- **Human lock** — decisions start at `PROVISIONAL_LOCK`. Destructive actions (incident resolution/closure, containment) can never auto-execute while `SHIELDGATE_REQUIRE_HUMAN_LOCK` is on (the default). A named human confirms via `POST /api/chp/decisions` → `LOCKED` with `confirmed_by`. AI principals cannot self-confirm, and confirmation is idempotent.
+- **Decision ledger** — append-only JSONL with SHA-256 body digests, revalidated on read (`integrity_valid`); tampered records surface through `GET /api/chp/decisions` instead of passing silently.
+- **ReBAC before CHP** — SpiceDB answers *who may act*; CHP answers *whether the action should happen*. A ReBAC deny short-circuits before the gate runs.
+
+Set `SHIELDGATE_REQUIRE_HUMAN_LOCK=0` to disable the lock for local demos only.
+
 ## Tech Stack
 
 | Layer | Technology |
