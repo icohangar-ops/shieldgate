@@ -274,3 +274,11 @@ MIT
 ---
 
 **Built for the [Splunk Agentic Ops Hackathon](https://splunk.devpost.com) by [Cubiczan Technologies](https://www.cubiczan.com)**
+
+## Propagation decisions (SecOps/Gov wave C)
+
+### Row 20 — evidence-carrying confidence: ADOPTED ORGANICALLY (credited; corrected from an assumed reversal)
+
+The wave-C matrix assumed a reversal here; reading the code shows the row is already satisfied. `FoundationAssessment` (src/lib/chp.ts) carries a numeric score WITH its evidence: `findings: string[]` names every contributing control as points are awarded — "guardrails passed: ReBAC allow, R0 pass, bounded execution (cap ${SOC_SPL_RESULT_CAP})" (GUARDRAIL_POINTS), "bounded result: ${execution.eventCount} event(s)" (BOUNDED_RESULT_POINTS) — and caps are explicit constants (`SOC_SPL_RESULT_CAP = 200`, the real Splunk client capped at 50 per the module's own docstring). A score in this system cannot be read without the evidence that produced it.
+
+**Keep-in-sync:** when the canonical scoring shape (cubiczan-resilience evidence-carrying confidence) grows structured (typed findings rather than strings), migrate `findings: string[]` to the structured shape — the numeric semantics and caps stay.
